@@ -1,0 +1,29 @@
+# Logs and databases
+*.log
+*.db
+*.db-journal
+
+# OS files
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# Node / React
+node_modules/
+dist/
+.eslintcache
+
+# Local env files
+.env
+.env.local
+
+# ML Models cache
+ml_models/*.joblib

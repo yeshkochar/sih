@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: freightsense-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: fs_user
+      POSTGRES_PASSWORD: fs_pass
+      POSTGRES_DB: freightsense
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    container_name: freightsense-backend
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://fs_user:fs_pass@postgres:5432/freightsense
+    depends_on:
+      - postgres
+
+  frontend:
+    build: ./frontend
+    container_name: freightsense-frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
