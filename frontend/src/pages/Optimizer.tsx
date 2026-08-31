@@ -54,21 +54,36 @@ export default function Optimizer({ ports, vessels, user }: OptimizerProps) {
   const commodities = ['Coking Coal', 'Thermal Coal', 'Iron Ore', 'Metallurgical Coal'];
   const vesselTypes = ['Handysize', 'Handymax', 'Supramax', 'Panamax', 'Kamsarmax'];
 
+  const formatDateToISO = (dateStr: string) => {
+    if (!dateStr) return new Date().toISOString().split('T')[0];
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
+      const [day, month, year] = dateStr.split('/');
+      return `${year}-${month}-${day}`;
+    }
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) {
+      return d.toISOString().split('T')[0];
+    }
+    return dateStr;
+  };
+
   const handleOptimize = async () => {
     setLoading(true);
     setError('');
     setResults(null);
 
     try {
+      const isoDate = formatDateToISO(requiredDate);
       const res = await fetch('/api/optimizer/recommend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           commodity,
-          quantity: Float64Array ? parseFloat(quantity.toString()) : quantity,
+          quantity: parseFloat(quantity.toString()),
           origin,
           destination,
-          required_by_date: requiredDate,
+          required_by_date: isoDate,
           preferred_vessel_type: prefVessel,
           max_budget: budget,
           priority: 'High'
