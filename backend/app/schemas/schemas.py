@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime, date
 
@@ -72,21 +72,6 @@ class CargoRequestIn(BaseModel):
     preferred_vessel_type: Optional[str] = None
     max_budget: Optional[float] = None
     priority: Optional[str] = "Medium"
-
-    @field_validator("required_by_date", mode="before")
-    def parse_flexible_date(cls, v):
-        if isinstance(v, date):
-            return v
-        if isinstance(v, str):
-            if "-" in v:
-                parts = v.split("T")[0].split("-")
-                if len(parts) == 3:
-                    return date(int(parts[0]), int(parts[1]), int(parts[2]))
-            if "/" in v:
-                parts = v.split("/")
-                if len(parts) == 3:
-                    return date(int(parts[2]), int(parts[1]), int(parts[0]))
-        return v
 
 class CargoRequestOut(CargoRequestIn):
     id: int
