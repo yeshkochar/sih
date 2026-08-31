@@ -239,10 +239,10 @@ export default function Optimizer({ ports, vessels, user }: OptimizerProps) {
       {/* Optimizer Output Results */}
       {results && (
         <div className="space-y-6">
-          
+
           {/* Main Top Recommendation Card */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
+
             {/* Best Vessel Option Card (2 cols) */}
             <div className="lg:col-span-2 glass-panel p-6 rounded-2xl relative overflow-hidden border-l-4 border-l-indigo-500">
               {results.is_overridden_local && (
@@ -250,16 +250,16 @@ export default function Optimizer({ ports, vessels, user }: OptimizerProps) {
                   ⚠️ USER OVERRIDE ACTIVE
                 </div>
               )}
-              
+
               <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 block mb-1">
                 {results.is_overridden_local ? 'Selected Alternate Vessel' : 'Best Ranked Vessel Recommendation'}
               </span>
-              
+
               <h3 className="text-2xl font-extrabold text-slate-100 flex items-center gap-2">
                 <Ship className="h-6 w-6 text-indigo-400" />
                 {results.recommended_vessel.vessel.vessel_name}
               </h3>
-              
+
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
                 <div>
                   <span className="text-[10px] text-slate-500 font-medium block">Vessel Class</span>
@@ -275,10 +275,9 @@ export default function Optimizer({ ports, vessels, user }: OptimizerProps) {
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-500 font-medium block">Voyage Risk Index</span>
-                  <span className={`text-sm font-semibold block mt-1 ${
-                    results.recommended_vessel.risk_score > 60 ? 'text-red-400' :
-                    results.recommended_vessel.risk_score > 40 ? 'text-amber-400' : 'text-emerald-400'
-                  }`}>
+                  <span className={`text-sm font-semibold block mt-1 ${results.recommended_vessel.risk_score > 60 ? 'text-red-400' :
+                      results.recommended_vessel.risk_score > 40 ? 'text-amber-400' : 'text-emerald-400'
+                    }`}>
                     {results.recommended_vessel.risk_score.toFixed(0)}/100
                   </span>
                 </div>
@@ -307,7 +306,7 @@ export default function Optimizer({ ports, vessels, user }: OptimizerProps) {
 
             {/* AI Charter Decision Options (1 col) */}
             <div className="space-y-4">
-              
+
               {/* Window Advice */}
               <div className="glass-panel p-5 rounded-2xl relative">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">Recommended Booking Action</span>
@@ -369,24 +368,22 @@ export default function Optimizer({ ports, vessels, user }: OptimizerProps) {
                 </thead>
                 <tbody className="divide-y divide-slate-900">
                   {results.ranked_vessels.map((rv: any, idx: number) => (
-                    <tr 
-                      key={rv.vessel.id} 
-                      className={`hover:bg-slate-900/30 transition ${
-                        (results.is_overridden_local ? rv.vessel.id === selectedOverrideVessel : idx === 0) 
-                          ? 'bg-indigo-950/20 text-slate-100 font-medium border-l-2 border-l-indigo-500' 
+                    <tr
+                      key={rv.vessel.id}
+                      className={`hover:bg-slate-900/30 transition ${(results.is_overridden_local ? rv.vessel.id === selectedOverrideVessel : idx === 0)
+                          ? 'bg-indigo-950/20 text-slate-100 font-medium border-l-2 border-l-indigo-500'
                           : 'text-slate-400'
-                      }`}
+                        }`}
                     >
                       <td className="py-3.5 px-2 font-bold">#{idx + 1}</td>
                       <td className="py-3.5 px-2 font-semibold text-slate-200">{rv.vessel.vessel_name}</td>
                       <td className="py-3.5 px-2">{rv.vessel.vessel_type}</td>
-                      <td className="py-3.5 px-2">{rv.vessel.cargo_capacity.toLocaleString()} MT</td>
-                      <td className="py-3.5 px-2 font-mono text-slate-200">${rv.metrics.total_cost.toLocaleString()}</td>
+                      <td className="py-3.5 px-2">{rv.vessel?.cargo_capacity?.toLocaleString() ?? "N/A"} MT</td>
+                      <td className="py-3.5 px-2 font-mono text-slate-200">${rv.metrics?.total_cost?.toLocaleString() ?? "N/A"}</td>
                       <td className="py-3.5 px-2">
-                        <span className={`px-1.5 py-0.5 rounded text-[10px] ${
-                          rv.risk_score > 60 ? 'bg-red-950/60 text-red-400' :
-                          rv.risk_score > 40 ? 'bg-amber-950/60 text-amber-400' : 'bg-emerald-950/60 text-emerald-400'
-                        }`}>
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] ${rv.risk_score > 60 ? 'bg-red-950/60 text-red-400' :
+                            rv.risk_score > 40 ? 'bg-amber-950/60 text-amber-400' : 'bg-emerald-950/60 text-emerald-400'
+                          }`}>
                           {rv.risk_score.toFixed(0)}/100
                         </span>
                       </td>
@@ -407,17 +404,17 @@ export default function Optimizer({ ports, vessels, user }: OptimizerProps) {
               <XCircle className="h-4 w-4 text-red-400" />
               Infeasible Rejected Vessels (Physical Constraints Violations)
             </h3>
-            
+
             {results.infeasible_vessels.length === 0 ? (
               <p className="text-xs text-slate-500">All registered fleet vessels satisfy the destination port constraints.</p>
             ) : (
               <div className="space-y-3">
                 {results.infeasible_vessels.map((iv: any) => {
                   const isExpanded = expandedVesselId === iv.vessel.id;
-                  
+
                   return (
-                    <div 
-                      key={iv.vessel.id} 
+                    <div
+                      key={iv.vessel.id}
                       className="border border-slate-900 bg-slate-950/40 rounded-xl overflow-hidden"
                     >
                       {/* Accordion Trigger */}
@@ -433,7 +430,7 @@ export default function Optimizer({ ports, vessels, user }: OptimizerProps) {
                         </div>
                         {isExpanded ? <ChevronUp className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}
                       </button>
-                      
+
                       {/* Accordion Body */}
                       {isExpanded && (
                         <div className="px-4 pb-4 pt-1 border-t border-slate-900/50 space-y-3.5">
@@ -502,7 +499,7 @@ export default function Optimizer({ ports, vessels, user }: OptimizerProps) {
             <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2 border-b border-slate-900 pb-2">
               ⚠️ Override Recommendation
             </h3>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-xs text-slate-400 mb-1.5">Select Alternative Vessel</label>

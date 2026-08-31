@@ -7,6 +7,7 @@ from backend.app.models.freight_rate import FreightRate
 from backend.app.models.cargo_request import CargoRequest
 from backend.app.services.feasibility import check_feasibility
 from backend.app.services.forecasting import get_forecast, get_disruption_impact
+from backend.app.models.recommendation import Recommendation
 
 # Default Configurable Weights
 DEFAULT_WEIGHTS = {
@@ -224,6 +225,10 @@ def optimize_charter(db: Session, request_id: int, custom_weights: dict = None):
         scored_vessels.append({
             "vessel": v,
             "metrics": m,
+
+            "draft_buffer": fv["draft_buffer"],
+            "loa_buffer": fv["loa_buffer"],
+
             "scores": {
                 "total": round(total_score, 1),
                 "cost": round(cost_score, 1),
@@ -233,6 +238,7 @@ def optimize_charter(db: Session, request_id: int, custom_weights: dict = None):
                 "fuel_efficiency": round(fuel_score, 1),
                 "idle_time": round(idle_time_score, 1)
             },
+
             "risk_score": round(vessel_risk, 1)
         })
         
