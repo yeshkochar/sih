@@ -10,19 +10,20 @@ interface Port {
   name: string;
   country: string;
   coast: string;
-  latitude: float;
-  longitude: float;
-  max_loa: float;
-  max_beam: float;
-  max_draft: float;
-  berth_capacity: int;
-  cargo_handling_capacity: float;
-  congestion_score: float;
+  latitude: number;
+  longitude: number;
+  max_loa: number;
+  max_beam: number;
+  max_draft: number;
+  berth_capacity: number;
+  cargo_handling_capacity: number;
+  congestion_score: number;
   status: string;
 }
 
 interface PortMapProps {
   ports: Port[];
+  vessels?: any[];
   selectedOrigin?: string;
   selectedDestination?: string;
   onSelectPort?: (portName: string) => void;
@@ -69,7 +70,7 @@ const createGlowingIcon = (color: string, isBig: boolean = false) => {
   });
 };
 
-export default function PortMap({ ports, selectedOrigin, selectedDestination, onSelectPort }: PortMapProps) {
+export default function PortMap({ ports, vessels = [], selectedOrigin, selectedDestination, onSelectPort }: PortMapProps) {
   // Find coordinates for polyline
   const originPort = ports.find(p => p.name === selectedOrigin);
   const destPort = ports.find(p => p.name === selectedDestination);
@@ -105,6 +106,7 @@ export default function PortMap({ ports, selectedOrigin, selectedDestination, on
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
+        {/* Render Port Markers */}
         {ports.map((port) => {
           const isOrigin = port.name === selectedOrigin;
           const isDest = port.name === selectedDestination;
@@ -123,7 +125,7 @@ export default function PortMap({ ports, selectedOrigin, selectedDestination, on
 
           return (
             <Marker
-              key={port.id}
+              key={`port-${port.id}`}
               position={[port.latitude, port.longitude]}
               icon={icon}
               eventHandlers={{
@@ -161,6 +163,50 @@ export default function PortMap({ ports, selectedOrigin, selectedDestination, on
                     <div className={`font-semibold uppercase ${port.status === 'Active' ? 'text-emerald-600' : 'text-rose-600'}`}>
                       {port.status}
                     </div>
+                  </div>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
+
+        {/* Render Real-Time AIS Vessel Markers */}
+        {vessels.filter(v => v.latitude && v.longitude && (v.latitude !== 0 || v.longitude !== 0)).map((vessel) => {
+          const vesselIcon = createGlowingIcon('#06b6d4', false); // Cyan glowing marker for vessels
+
+          return (
+            <Marker
+              key={`vessel-${vessel.id}`}
+              position={[vessel.latitude, vessel.longitude]}
+              icon={vesselIcon}
+            >
+              <Popup>
+                <div className="text-slate-900 font-sans p-1 min-w-[190px]">
+                  <div className="font-bold text-sm border-b pb-1 mb-1 text-slate-800 flex justify-between items-center gap-2">
+                    <span>🚢 {vessel.vessel_name}</span>
+                    <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-800 border border-cyan-300">
+                      AIS LIVE
+                    </span>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs text-slate-600 mt-2">
+                    <div>Type:</div>
+                    <div className="font-medium text-slate-800">{vessel.vessel_type}</div>
+
+                    <div>Speed:</div>
+                    <div className="font-medium text-slate-800">{vessel.speed} kts</div>
+
+                    <div>Draft:</div>
+                    <div className="font-medium text-slate-800">{vessel.draft} m</div>
+
+                    <div>Destination:</div>
+                    <div className="font-semibold text-blue-700">{vessel.destination_port || 'En Route'}</div>
+
+                    <div>ETA:</div>
+                    <div className="font-mono text-slate-800">{vessel.eta || 'N/A'}</div>
+
+                    <div>Source:</div>
+                    <div className="text-[10px] text-slate-500 font-mono">MarineTraffic AIS</div>
                   </div>
                 </div>
               </Popup>

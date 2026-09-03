@@ -17,18 +17,52 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     setError('');
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.detail || 'Login failed');
+      let response: Response;
+      try {
+        response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+      } catch (networkErr) {
+        // Fallback to direct backend URL if proxy connection fails
+        response = await fetch('http://127.0.0.1:8000/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
       }
 
-      const data = await response.json();
+      // If proxy returned 500/502 without body, try direct backend URL
+      if (!response.ok && (response.status === 500 || response.status === 502)) {
+        try {
+          const directRes = await fetch('http://127.0.0.1:8000/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+          });
+          if (directRes.ok || directRes.status === 400) {
+            response = directRes;
+          }
+        } catch (_) {}
+      }
+
+      const text = await response.text();
+      let data: any = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch (parseErr) {
+        throw new Error(`Server returned non-JSON response (${response.status}): ${text.substring(0, 100)}`);
+      }
+
+      if (!response.ok) {
+        throw new Error(data.detail || `Login failed (${response.status})`);
+      }
+
+      if (!data.user || !data.access_token) {
+        throw new Error('Invalid authentication response structure');
+      }
+
       onLoginSuccess(data.user, data.access_token);
     } catch (err: any) {
       setError(err.message || 'Server error. Please verify the backend is running.');
