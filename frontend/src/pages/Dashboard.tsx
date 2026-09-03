@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Ship, AlertTriangle, TrendingUp, TrendingDown, Clock, ShieldAlert, Award, Compass, RefreshCw } from 'lucide-react';
 import PortMap from '../components/PortMap';
 
+import FreshnessTag from '../components/FreshnessTag';
+
 interface Alert {
   id: string;
   title: string;
@@ -26,14 +28,14 @@ interface Port {
   name: string;
   country: string;
   coast: string;
-  latitude: float;
-  longitude: float;
-  max_loa: float;
-  max_beam: float;
-  max_draft: float;
-  berth_capacity: int;
-  cargo_handling_capacity: float;
-  congestion_score: float;
+  latitude: number;
+  longitude: number;
+  max_loa: number;
+  max_beam: number;
+  max_draft: number;
+  berth_capacity: number;
+  cargo_handling_capacity: number;
+  congestion_score: number;
   status: string;
 }
 
@@ -65,6 +67,7 @@ interface Recommendation {
   explanation: string;
   created_at: string;
   is_overridden: number;
+  override_vessel_id?: number;
   override_reason: string;
   override_by: string;
 }
@@ -215,7 +218,7 @@ export default function Dashboard({ ports, vessels, onNavigate }: DashboardProps
             </span>
           </div>
           <div className="h-[400px] rounded-xl overflow-hidden border border-slate-900">
-            <PortMap ports={ports} />
+            <PortMap ports={ports} vessels={vessels} />
           </div>
         </div>
 

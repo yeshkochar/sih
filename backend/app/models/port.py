@@ -19,3 +19,5 @@ class Port(Base):
     congestion_score = Column(Float, default=0.0)  # 0 to 100
     status = Column(String, default="Active")  # Active, Closed, Maintenance
     last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    data_source = Column(String, default="Port Authority / NLP Marine")
+    data_status = Column(String, default="LIVE")

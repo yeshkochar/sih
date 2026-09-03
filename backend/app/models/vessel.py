@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Float
+from sqlalchemy import Column, Integer, String, Float, DateTime
+from datetime import datetime
 from backend.app.database.base import Base
 
 class Vessel(Base):
@@ -16,3 +17,12 @@ class Vessel(Base):
     fuel_consumption = Column(Float, nullable=False)  # Fuel consumption in tons per day at sea
     availability_status = Column(String, default="Available")  # Available, Chartered, Maintenance
     current_port = Column(String, nullable=True)
+    
+    # AIS Real-Time Tracking Metadata
+    latitude = Column(Float, nullable=True, default=0.0)
+    longitude = Column(Float, nullable=True, default=0.0)
+    destination_port = Column(String, nullable=True)
+    eta = Column(String, nullable=True)
+    last_position_update = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    data_source = Column(String, default="MarineTraffic AIS")
+    data_status = Column(String, default="LIVE")

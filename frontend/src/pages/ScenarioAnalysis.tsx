@@ -43,16 +43,28 @@ export default function ScenarioAnalysis() {
         // or we can fetch a static mock selector if none exists, or fetch recommendations
         // which contains cargo_request_id. Let's write a fetch that reads from recommendations
         // or simply queries a list. Let's fetch recommendations, and if empty, we fall back to a default mock request object.
-        const res = await fetch('/api/recommendations');
-        const data = await res.json();
+        let res: Response;
+        try {
+          res = await fetch('/api/recommendations');
+        } catch (_) {
+          res = await fetch('http://127.0.0.1:8000/api/recommendations');
+        }
         
-        if (data.length > 0) {
+        const text = await res.text();
+        let data: any = [];
+        try {
+          data = text ? JSON.parse(text) : [];
+        } catch (_) {
+          data = [];
+        }
+
+        if (Array.isArray(data) && data.length > 0) {
           const list = data.map((r: any) => ({
             id: r.cargo_request_id,
-            commodity: r.explanation.includes('Coking Coal') ? 'Coking Coal' : 'Thermal Coal',
-            quantity: r.explanation.includes('Coking Coal') ? 75000 : 80000,
-            origin: r.explanation.includes('Newcastle') ? 'Newcastle' : 'Richards Bay',
-            destination: r.explanation.includes('Visakhapatnam') ? 'Visakhapatnam' : 'Paradip'
+            commodity: r.explanation && r.explanation.includes('Coking Coal') ? 'Coking Coal' : 'Thermal Coal',
+            quantity: r.explanation && r.explanation.includes('Coking Coal') ? 75000 : 80000,
+            origin: r.explanation && r.explanation.includes('Newcastle') ? 'Newcastle' : 'Richards Bay',
+            destination: r.explanation && r.explanation.includes('Visakhapatnam') ? 'Visakhapatnam' : 'Paradip'
           }));
           // Remove duplicates
           const uniqueList = list.filter((v: any, i: any, a: any) => a.findIndex((t: any) => t.id === v.id) === i);
@@ -85,40 +97,82 @@ export default function ScenarioAnalysis() {
 
     try {
       // 1. Run Base Case Optimization (normal inputs)
-      const baseRes = await fetch('/api/scenarios/simulate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          request_id: selectedReqId,
-          rate_multiplier: 1.0,
-          fuel_price: 600.0,
-          fx_rate: 82.5,
-          congestion_multiplier: 1.0,
-          disruption_severity: 'Low'
-        })
-      });
-      const baseData = await baseRes.json();
+      const basePayload = {
+        request_id: selectedReqId,
+        rate_multiplier: 1.0,
+        fuel_price: 600.0,
+        fx_rate: 82.5,
+        congestion_multiplier: 1.0,
+        disruption_severity: 'Low'
+      };
+
+      let baseRes: Response;
+      try {
+        baseRes = await fetch('/api/scenarios/simulate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(basePayload)
+        });
+      } catch (_) {
+        baseRes = await fetch('http://127.0.0.1:8000/api/scenarios/simulate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(basePayload)
+        });
+      }
+      
+      const baseText = await baseRes.text();
+      let baseData: any = {};
+      try {
+        baseData = baseText ? JSON.parse(baseText) : {};
+      } catch (err) {
+        throw new Error(`Base case error (${baseRes.status}): ${baseText.substring(0, 80)}`);
+      }
+      if (!baseRes.ok) {
+        throw new Error(baseData.detail || `Base case simulation failed (${baseRes.status})`);
+      }
       setBaseCase(baseData);
 
       // 2. Run Simulated Custom Case
-      const simRes = await fetch('/api/scenarios/simulate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          request_id: selectedReqId,
-          rate_multiplier: rateMult,
-          fuel_price: fuelPrice,
-          fx_rate: fxRate,
-          congestion_multiplier: congestionMult,
-          disruption_severity: disrSeverity
-        })
-      });
-      const simData = await simRes.json();
+      const simPayload = {
+        request_id: selectedReqId,
+        rate_multiplier: rateMult,
+        fuel_price: fuelPrice,
+        fx_rate: fxRate,
+        congestion_multiplier: congestionMult,
+        disruption_severity: disrSeverity
+      };
+
+      let simRes: Response;
+      try {
+        simRes = await fetch('/api/scenarios/simulate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(simPayload)
+        });
+      } catch (_) {
+        simRes = await fetch('http://127.0.0.1:8000/api/scenarios/simulate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(simPayload)
+        });
+      }
+
+      const simText = await simRes.text();
+      let simData: any = {};
+      try {
+        simData = simText ? JSON.parse(simText) : {};
+      } catch (err) {
+        throw new Error(`Sim case error (${simRes.status}): ${simText.substring(0, 80)}`);
+      }
+      if (!simRes.ok) {
+        throw new Error(simData.detail || `Simulation failed (${simRes.status})`);
+      }
       setSimCase(simData);
 
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert('Simulation failed. Please check backend connection.');
+      alert(e.message || 'Simulation failed. Please check backend connection.');
     } finally {
       setLoading(false);
     }

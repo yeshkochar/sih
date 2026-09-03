@@ -1,5 +1,5 @@
 import datetime
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from backend.app.database.connection import get_db
@@ -15,15 +15,34 @@ from backend.app.models.audit_log import AuditLog
 from backend.app.schemas.schemas import (
     PortOut, VesselOut, FreightRateOut, CargoRequestIn, CargoRequestOut,
     ForecastIn, ForecastResponse, RecommendationOut, OverrideIn,
-    DisruptionOut, AuditLogOut, ScenarioIn, DashboardSummary, AlertItem
+    DisruptionOut, AuditLogOut, ScenarioIn, DashboardSummary, AlertItem,
+    DataHealthResponse, DataMetadata
 )
 from backend.app.services.forecasting import get_forecast
 from backend.app.services.feasibility import check_feasibility
 from backend.app.services.optimization import optimize_charter
 from backend.app.services.scenarios import simulate_scenario
+from backend.app.services.ingestion import get_data_health_summary
+from backend.app.api.websocket_manager import manager
 from backend.app.utils.demo_data import reset_demo_data
 
 router = APIRouter()
+
+# 0. REAL-TIME WEBSOCKET & DATA HEALTH CONTRACT
+@router.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            # Keep connection alive & listen for client messages
+            data = await websocket.receive_text()
+            await websocket.send_json({"event": "pong", "timestamp": datetime.datetime.utcnow().isoformat() + "Z"})
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+
+@router.get("/data-health", response_model=DataHealthResponse)
+def get_data_health():
+    return get_data_health_summary()
 
 # 1. AUTHENTICATION (Simulated JWT for SIH MVP)
 @router.post("/auth/login")

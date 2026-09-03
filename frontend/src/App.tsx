@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Ship, LayoutDashboard, Calendar, Compass, Sliders, FileText, LogOut, RefreshCw, User, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Ship, LayoutDashboard, Calendar, Compass, Sliders, FileText, LogOut, RefreshCw, User, CheckCircle2, Activity } from 'lucide-react';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Forecast from './pages/Forecast';
@@ -7,6 +7,9 @@ import Optimizer from './pages/Optimizer';
 import PortIntel from './pages/PortIntel';
 import ScenarioAnalysis from './pages/ScenarioAnalysis';
 import AuditLogs from './pages/AuditLogs';
+import DataHealth from './pages/DataHealth';
+import ConnectionStatus from './components/ConnectionStatus';
+import { useWebSocket, WebSocketEvent } from './hooks/useWebSocket';
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
@@ -52,19 +55,41 @@ export default function App() {
     if (!user) return;
     setLoadingData(true);
     try {
-      const portsRes = await fetch('/api/ports');
-      const portsData = await portsRes.json();
-      setPorts(portsData);
+      let portsRes = await fetch('/api/ports').catch(() => fetch('http://127.0.0.1:8000/api/ports'));
+      if (!portsRes.ok) portsRes = await fetch('http://127.0.0.1:8000/api/ports').catch(() => portsRes);
+      if (portsRes.ok) {
+        const portsData = await portsRes.json();
+        setPorts(portsData);
+      }
 
-      const vesselsRes = await fetch('/api/vessels');
-      const vesselsData = await vesselsRes.json();
-      setVessels(vesselsData);
+      let vesselsRes = await fetch('/api/vessels').catch(() => fetch('http://127.0.0.1:8000/api/vessels'));
+      if (!vesselsRes.ok) vesselsRes = await fetch('http://127.0.0.1:8000/api/vessels').catch(() => vesselsRes);
+      if (vesselsRes.ok) {
+        const vesselsData = await vesselsRes.json();
+        setVessels(vesselsData);
+      }
     } catch (e) {
       console.error("Error loading ports/vessels list", e);
     } finally {
       setLoadingData(false);
     }
   };
+
+  // Real-time WebSocket Event Handler
+  const handleWSEvent = useCallback((evt: WebSocketEvent) => {
+    if (evt.event === 'data.updated') {
+      if (evt.dataType === 'vessel' && Array.isArray(evt.data)) {
+        setVessels(evt.data);
+      } else if (evt.dataType === 'port' && Array.isArray(evt.data)) {
+        setPorts(prev => prev.map(p => {
+          const match = evt.data.find((updatedP: any) => updatedP.id === p.id);
+          return match ? { ...p, ...match } : p;
+        }));
+      }
+    }
+  }, []);
+
+  const { connectionStatus, lastSyncTime } = useWebSocket(handleWSEvent);
 
   useEffect(() => {
     fetchSharedData();
@@ -124,6 +149,7 @@ export default function App() {
               { id: 'optimizer', label: 'Vessel Optimizer', icon: Ship },
               { id: 'ports', label: 'Port Intelligence', icon: Compass },
               { id: 'scenarios', label: 'Scenario Simulator', icon: Sliders },
+              { id: 'health', label: 'Data Health & Sync', icon: Activity },
               { id: 'audit', label: 'System Audit Trail', icon: FileText }
             ].map((item) => {
               const Icon = item.icon;
@@ -174,10 +200,11 @@ export default function App() {
         
         {/* Top Navbar */}
         <header className="h-16 bg-slate-900 border-b border-slate-950 flex items-center justify-between px-8 shrink-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <span className="text-xs uppercase font-bold tracking-wider text-slate-500 bg-slate-950 border border-slate-800 px-2.5 py-1 rounded-lg">
               SIH 2026 - SAIL / MINISTRY OF STEEL
             </span>
+            <ConnectionStatus status={connectionStatus} lastSyncTime={lastSyncTime} />
           </div>
 
           {/* Demo Data Reset Trigger */}
@@ -229,6 +256,7 @@ export default function App() {
               {activeTab === 'optimizer' && <Optimizer ports={ports} vessels={vessels} user={user} />}
               {activeTab === 'ports' && <PortIntel ports={ports} />}
               {activeTab === 'scenarios' && <ScenarioAnalysis />}
+              {activeTab === 'health' && <DataHealth />}
               {activeTab === 'audit' && <AuditLogs />}
             </>
           )}

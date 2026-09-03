@@ -27,6 +27,8 @@ interface OptimizerProps {
   user: any;
 }
 
+import FreshnessTag from '../components/FreshnessTag';
+
 export default function Optimizer({ ports, vessels, user }: OptimizerProps) {
   // Inputs
   const [commodity, setCommodity] = useState('Coking Coal');
@@ -60,27 +62,44 @@ export default function Optimizer({ ports, vessels, user }: OptimizerProps) {
     setResults(null);
 
     try {
-      const res = await fetch('/api/optimizer/recommend', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          commodity,
-          quantity: Float64Array ? parseFloat(quantity.toString()) : quantity,
-          origin,
-          destination,
-          required_by_date: requiredDate,
-          preferred_vessel_type: prefVessel,
-          max_budget: budget,
-          priority: 'High'
-        })
-      });
+      let res: Response;
+      const payload = {
+        commodity,
+        quantity: parseFloat(quantity.toString()),
+        origin,
+        destination,
+        required_by_date: requiredDate,
+        preferred_vessel_type: prefVessel,
+        max_budget: budget,
+        priority: 'High'
+      };
 
-      if (!res.ok) {
-        const errJson = await res.json();
-        throw new Error(errJson.detail || 'Optimizer calculation failed');
+      try {
+        res = await fetch('/api/optimizer/recommend', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } catch (netErr) {
+        res = await fetch('http://127.0.0.1:8000/api/optimizer/recommend', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
       }
 
-      const data = await res.json();
+      const text = await res.text();
+      let data: any = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch (pErr) {
+        throw new Error(`Server error (${res.status}): ${text.substring(0, 100)}`);
+      }
+
+      if (!res.ok) {
+        throw new Error(data.detail || `Optimizer calculation failed (${res.status})`);
+      }
+
       setResults(data);
     } catch (e: any) {
       setError(e.message || 'Error executing optimizer');
@@ -251,9 +270,12 @@ export default function Optimizer({ ports, vessels, user }: OptimizerProps) {
                 </div>
               )}
 
-              <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 block mb-1">
-                {results.is_overridden_local ? 'Selected Alternate Vessel' : 'Best Ranked Vessel Recommendation'}
-              </span>
+              <div className="flex items-center justify-between gap-4 mb-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 block">
+                  {results.is_overridden_local ? 'Selected Alternate Vessel' : 'Best Ranked Vessel Recommendation'}
+                </span>
+                <FreshnessTag status="LIVE" source="AI Engine (Platts & MarineTraffic AIS)" compact />
+              </div>
 
               <h3 className="text-2xl font-extrabold text-slate-100 flex items-center gap-2">
                 <Ship className="h-6 w-6 text-indigo-400" />

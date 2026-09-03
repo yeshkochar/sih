@@ -19,7 +19,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Startup Seeding and Table Initialization
+# Startup Seeding, Table Initialization, and Background Ingestion Engine
 @app.on_event("startup")
 def on_startup():
     print("Initializing Database...")
@@ -38,6 +38,17 @@ def on_startup():
             print("Database already contains data.")
     finally:
         db.close()
+        
+    # Start Background Real-time Data Ingestion Engine
+    from backend.app.services.ingestion import ingestion_engine
+    ingestion_engine.start()
+    print("Background Ingestion Engine Started.")
+
+@app.on_event("shutdown")
+def on_shutdown():
+    from backend.app.services.ingestion import ingestion_engine
+    ingestion_engine.stop()
+    print("Background Ingestion Engine Stopped.")
 
 # Include Routers
 app.include_router(api_router, prefix="/api")

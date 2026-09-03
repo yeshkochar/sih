@@ -2,6 +2,31 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime, date
 
+# 0. Metadata & Data Health Schemas
+class DataMetadata(BaseModel):
+    source: str
+    status: str  # LIVE, CACHED, DEMO
+    fetchedAt: str
+    sourceTimestamp: Optional[str] = None
+    nextRefreshAt: Optional[str] = None
+
+class DataHealthItem(BaseModel):
+    channel: str
+    name: str
+    status: str  # LIVE, CACHED, DEMO
+    source: str
+    refresh_interval_seconds: int
+    last_updated: str
+    next_update_in_seconds: int
+    record_count: int
+    details: str
+
+class DataHealthResponse(BaseModel):
+    system_mode: str  # LIVE or DEMO
+    overall_status: str  # HEALTHY, DEGRADED, OFFLINE
+    last_sync: str
+    channels: List[DataHealthItem]
+
 # 1. Port Schemas
 class PortBase(BaseModel):
     name: str
@@ -16,6 +41,8 @@ class PortBase(BaseModel):
     cargo_handling_capacity: float
     congestion_score: float
     status: str
+    data_source: Optional[str] = "Port Authority / NLP Marine"
+    data_status: Optional[str] = "LIVE"
 
 class PortOut(PortBase):
     id: int
@@ -37,9 +64,16 @@ class VesselBase(BaseModel):
     fuel_consumption: float
     availability_status: str
     current_port: Optional[str] = None
+    latitude: Optional[float] = 0.0
+    longitude: Optional[float] = 0.0
+    destination_port: Optional[str] = None
+    eta: Optional[str] = None
+    data_source: Optional[str] = "MarineTraffic AIS"
+    data_status: Optional[str] = "LIVE"
 
 class VesselOut(VesselBase):
     id: int
+    last_position_update: Optional[datetime] = None
 
     class Config:
         from_attributes = True

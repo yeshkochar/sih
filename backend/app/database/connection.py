@@ -26,6 +26,8 @@ def get_db():
     finally:
         db.close()
 
+from sqlalchemy import text
+
 def init_db():
     # Import models here to register them with Base
     from backend.app.models.port import Port
@@ -38,3 +40,34 @@ def init_db():
     from backend.app.models.audit_log import AuditLog
     
     Base.metadata.create_all(bind=engine)
+
+    # Auto-migrate missing columns for SQLite
+    with engine.connect() as conn:
+        try:
+            res_p = conn.execute(text("PRAGMA table_info(ports)")).fetchall()
+            port_cols = [r[1] for r in res_p]
+            if "data_source" not in port_cols:
+                conn.execute(text("ALTER TABLE ports ADD COLUMN data_source VARCHAR DEFAULT 'Port Authority / NLP Marine'"))
+            if "data_status" not in port_cols:
+                conn.execute(text("ALTER TABLE ports ADD COLUMN data_status VARCHAR DEFAULT 'LIVE'"))
+
+            res_v = conn.execute(text("PRAGMA table_info(vessels)")).fetchall()
+            vessel_cols = [r[1] for r in res_v]
+            if "latitude" not in vessel_cols:
+                conn.execute(text("ALTER TABLE vessels ADD COLUMN latitude FLOAT DEFAULT 0.0"))
+            if "longitude" not in vessel_cols:
+                conn.execute(text("ALTER TABLE vessels ADD COLUMN longitude FLOAT DEFAULT 0.0"))
+            if "destination_port" not in vessel_cols:
+                conn.execute(text("ALTER TABLE vessels ADD COLUMN destination_port VARCHAR"))
+            if "eta" not in vessel_cols:
+                conn.execute(text("ALTER TABLE vessels ADD COLUMN eta VARCHAR"))
+            if "last_position_update" not in vessel_cols:
+                conn.execute(text("ALTER TABLE vessels ADD COLUMN last_position_update DATETIME"))
+            if "data_source" not in vessel_cols:
+                conn.execute(text("ALTER TABLE vessels ADD COLUMN data_source VARCHAR DEFAULT 'MarineTraffic AIS'"))
+            if "data_status" not in vessel_cols:
+                conn.execute(text("ALTER TABLE vessels ADD COLUMN data_status VARCHAR DEFAULT 'LIVE'"))
+
+            conn.commit()
+        except Exception as e:
+            print("Auto-migration note:", e)
