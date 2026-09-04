@@ -16,7 +16,7 @@ from backend.app.schemas.schemas import (
     PortOut, VesselOut, FreightRateOut, CargoRequestIn, CargoRequestOut,
     ForecastIn, ForecastResponse, RecommendationOut, OverrideIn,
     DisruptionOut, AuditLogOut, ScenarioIn, DashboardSummary, AlertItem,
-    DataHealthResponse, DataMetadata
+    DataHealthResponse, DataMetadata, RAGQueryIn, RAGQueryResponse
 )
 from backend.app.services.forecasting import get_forecast
 from backend.app.services.feasibility import check_feasibility
@@ -25,6 +25,7 @@ from backend.app.services.scenarios import simulate_scenario
 from backend.app.services.ingestion import get_data_health_summary
 from backend.app.api.websocket_manager import manager
 from backend.app.utils.demo_data import reset_demo_data
+from backend.app.rag.service import execute_rag_query
 
 router = APIRouter()
 
@@ -351,3 +352,12 @@ def trigger_demo_reset(payload: dict, db: Session = Depends(get_db)):
     scenario = payload.get("scenario", "normal")
     reset_demo_data(db, scenario)
     return {"status": "Success", "message": f"Demo environment reseeded successfully for scenario '{scenario}'."}
+
+# 15. RAG QUERY ENDPOINT
+@router.post("/rag/query", response_model=RAGQueryResponse)
+def handle_rag_query(payload: RAGQueryIn, db: Session = Depends(get_db)):
+    if not payload.question or not payload.question.strip():
+        raise HTTPException(status_code=400, detail="Question cannot be empty.")
+    
+    res = execute_rag_query(db, payload.question, payload.recommendation_id)
+    return res

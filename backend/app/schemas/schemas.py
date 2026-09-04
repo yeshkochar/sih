@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime, date
 
 # 0. Metadata & Data Health Schemas
@@ -59,21 +59,23 @@ class VesselBase(BaseModel):
     loa: float
     beam: float
     draft: float
-    cargo_capacity: float
     speed: float
     fuel_consumption: float
-    availability_status: str
+    daily_charter_rate: Optional[float] = 18000.0
     current_port: Optional[str] = None
+    status: Optional[str] = "Available"
+    availability_status: Optional[str] = "Available"
+    cargo_capacity: Optional[float] = None
     latitude: Optional[float] = 0.0
     longitude: Optional[float] = 0.0
     destination_port: Optional[str] = None
     eta: Optional[str] = None
+    last_position_update: Optional[datetime] = None
     data_source: Optional[str] = "MarineTraffic AIS"
     data_status: Optional[str] = "LIVE"
 
 class VesselOut(VesselBase):
     id: int
-    last_position_update: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -81,17 +83,12 @@ class VesselOut(VesselBase):
 # 3. Freight Rate Schemas
 class FreightRateOut(BaseModel):
     id: int
-    date: date
     origin_port: str
     destination_port: str
     vessel_type: str
     commodity: str
     freight_rate: float
-    currency: str
-    fuel_index: float
-    fx_rate: float
-    congestion_index: float
-    demand_index: float
+    date: date
 
     class Config:
         from_attributes = True
@@ -103,12 +100,13 @@ class CargoRequestIn(BaseModel):
     origin: str
     destination: str
     required_by_date: date
-    preferred_vessel_type: Optional[str] = None
+    preferred_vessel_type: Optional[str] = "Panamax"
     max_budget: Optional[float] = None
-    priority: Optional[str] = "Medium"
+    priority: Optional[str] = "Cost"
 
 class CargoRequestOut(CargoRequestIn):
     id: int
+    created_at: datetime
 
     class Config:
         from_attributes = True
@@ -121,19 +119,21 @@ class ForecastIn(BaseModel):
     commodity: str
 
 class ForecastPoint(BaseModel):
-    date: date
+    date: str
     predicted_rate: float
-    lower_bound: float
-    upper_bound: float
-    horizon_days: int
+    lower_ci: float
+    upper_ci: float
 
 class ForecastResponse(BaseModel):
+    origin: str
+    destination: str
+    vessel_type: str
+    commodity: str
     forecast: List[ForecastPoint]
-    metrics: dict
-    best_model: str
-    confidence_score: float
+    model_name: str
+    mae: float
 
-# 6. Recommendation & Override Schemas
+# 6. Recommendation Schemas
 class RecommendationOut(BaseModel):
     id: int
     cargo_request_id: int
@@ -166,9 +166,8 @@ class DisruptionOut(BaseModel):
     port: str
     type: str
     severity: str
-    start_date: date
-    expected_duration: int
     description: str
+    created_at: datetime
 
     class Config:
         from_attributes = True
@@ -213,3 +212,19 @@ class DashboardSummary(BaseModel):
     market_risk_score: float
     average_port_congestion: float
     alerts: List[AlertItem]
+
+# 11. RAG Schemas
+class RAGQueryIn(BaseModel):
+    question: str
+    recommendation_id: Optional[int] = None
+
+class RAGQueryResponse(BaseModel):
+    question: str
+    recommendation_id: Optional[int] = None
+    answer: str
+    grounded: bool
+    grounding_status: str
+    confidence: float
+    sources: List[Dict[str, Any]]
+    evidence: Dict[str, Any]
+    retrieval_metadata: Dict[str, Any]

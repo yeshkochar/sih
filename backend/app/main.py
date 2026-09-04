@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.app.database.connection import init_db, SessionLocal
 from backend.app.api.api import router as api_router
 from backend.app.utils.demo_data import reset_demo_data
+from backend.app.utils.seed_knowledge_base import seed_knowledge_base_documents
 
 app = FastAPI(
     title="FreightSense AI Backend",
@@ -36,6 +37,9 @@ def on_startup():
             print("Database seeded.")
         else:
             print("Database already contains data.")
+
+        # Seed RAG Knowledge Base
+        seed_knowledge_base_documents(db)
     finally:
         db.close()
         
