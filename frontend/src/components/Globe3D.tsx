@@ -38,11 +38,7 @@ const GLOBAL_NODES: GlobalLocationNode[] = [
   { id: 'us-houston', name: 'Port of Houston', country: 'United States', code: 'US', lat: 29.76, lon: -95.36, draft: 14.5, congestion: 40, type: 'ORIGIN', majorExports: 'US Met Coal & Petroleum Coke', sailRelevance: 'Atlantic Met Coal Sourcing Base' },
   { id: 'ca-vancouver', name: 'Port of Vancouver', country: 'Canada', code: 'CA', lat: 49.28, lon: -123.12, draft: 15.0, congestion: 48, type: 'ORIGIN', majorExports: 'Hard Coking Coal', sailRelevance: 'Pacific Hard Coking Coal Reserve Supplier' },
   
-  { id: 'nl-rotterdam', name: 'Port of Rotterdam', country: 'Netherlands', code: 'NL', lat: 51.92, lon: 4.47, draft: 24.0, congestion: 25, type: 'HUB', majorExports: 'European Scrap & Freight Derivatives', sailRelevance: 'Baltic Dry Index Benchmark Reference' },
-  { id: 'ae-fujairah', name: 'Port of Fujairah', country: 'United Arab Emirates', code: 'AE', lat: 25.12, lon: 56.32, draft: 15.0, congestion: 20, type: 'HUB', majorExports: 'Middle East Bunker Fuel', sailRelevance: 'Indian Ocean Bunker Fuel Supply Point' },
-  { id: 'qa-raslaffan', name: 'Ras Laffan Industrial City', country: 'Qatar', code: 'QA', lat: 25.92, lon: 51.55, draft: 15.5, congestion: 15, type: 'ORIGIN', majorExports: 'Industrial Flux & Energy', sailRelevance: 'Flux Material Sourcing Corridor' },
-  { id: 'kr-busan', name: 'Port of Busan', country: 'South Korea', code: 'KR', lat: 35.10, lon: 129.04, draft: 16.0, congestion: 42, type: 'HUB', majorExports: 'Specialized Steel Plates', sailRelevance: 'East Asian Maritime Fleet Base' },
-  { id: 'id-banjarmasin', name: 'Banjarmasin Port', country: 'Indonesia', code: 'ID', lat: -3.31, lon: 114.59, draft: 11.5, congestion: 55, type: 'ORIGIN', majorExports: 'Thermal Coal', sailRelevance: 'Southeast Asian Thermal Energy Supplier' }
+  { id: 'nl-rotterdam', name: 'Port of Rotterdam', country: 'Netherlands', code: 'NL', lat: 51.92, lon: 4.47, draft: 24.0, congestion: 25, type: 'HUB', majorExports: 'European Scrap & Freight Derivatives', sailRelevance: 'Baltic Dry Index Benchmark Reference' }
 ];
 
 const ROUTE_ARCS = [
@@ -59,7 +55,7 @@ interface Globe3DProps {
 
 export default function Globe3D({ onSelectNode }: Globe3DProps) {
   const mountRef = useRef<HTMLDivElement>(null);
-  const [selectedNode, setSelectedNode] = useState<GlobalLocationNode>(GLOBAL_NODES[0]); // Default Visakhapatnam
+  const [selectedNode, setSelectedNode] = useState<GlobalLocationNode>(GLOBAL_NODES[0]);
   const [hoveredNode, setHoveredNode] = useState<GlobalLocationNode | null>(null);
   const [isRotating, setIsRotating] = useState(true);
 
@@ -70,9 +66,9 @@ export default function Globe3D({ onSelectNode }: Globe3DProps) {
     const width = container.clientWidth || 800;
     const height = container.clientHeight || 450;
 
-    // 1. Scene, Camera, Renderer
+    // 1. Scene, Camera, Renderer (Steel & Ocean theme)
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0f172a); // Clean slate navy
+    scene.background = new THREE.Color(0x070A0D);
 
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
     camera.position.set(0, 0, 7.2);
@@ -86,19 +82,18 @@ export default function Globe3D({ onSelectNode }: Globe3DProps) {
     const globeRadius = 2.4;
     const globeGeo = new THREE.SphereGeometry(globeRadius, 64, 64);
     
-    // Canvas texture with accurate continent maps
     const canvas = document.createElement('canvas');
     canvas.width = 2048;
     canvas.height = 1024;
     const ctx = canvas.getContext('2d');
     
     if (ctx) {
-      // Ocean Base
-      ctx.fillStyle = '#0f172a';
+      // Ocean Base - Dark Ocean Void
+      ctx.fillStyle = '#0B131A';
       ctx.fillRect(0, 0, 2048, 1024);
 
-      // Fine Lat/Lon Coordinate Grid
-      ctx.strokeStyle = 'rgba(51, 65, 85, 0.4)';
+      // Fine Lat/Lon Coordinate Grid - Metallic Silver
+      ctx.strokeStyle = 'rgba(44, 62, 76, 0.4)';
       ctx.lineWidth = 1;
       for (let x = 0; x <= 2048; x += 64) {
         ctx.beginPath();
@@ -113,10 +108,10 @@ export default function Globe3D({ onSelectNode }: Globe3DProps) {
         ctx.stroke();
       }
 
-      // Draw Detailed Global Continents (Equirectangular Projections)
-      ctx.fillStyle = '#1e293b';
-      ctx.strokeStyle = '#334155';
-      ctx.lineWidth = 2;
+      // Draw Detailed Global Continents (Steel #1B252C with #2C3E4C border)
+      ctx.fillStyle = '#1B252C';
+      ctx.strokeStyle = '#2C3E4C';
+      ctx.lineWidth = 1.5;
 
       const drawLandmass = (pathCoords: [number, number][]) => {
         if (pathCoords.length === 0) return;
@@ -135,7 +130,7 @@ export default function Globe3D({ onSelectNode }: Globe3DProps) {
       // Asia & India
       drawLandmass([[68, 25], [78, 35], [88, 28], [92, 22], [88, 10], [78, 8], [72, 15]]);
       drawLandmass([[95, 30], [125, 40], [130, 22], [105, 10], [98, 15]]);
-      drawLandmass([[130, 45], [145, 45], [140, 30], [130, 32]]); // Japan
+      drawLandmass([[130, 45], [145, 45], [140, 30], [130, 32]]);
 
       // Oceania / Australia
       drawLandmass([[113, -12], [153, -12], [153, -38], [113, -38]]);
@@ -150,47 +145,38 @@ export default function Globe3D({ onSelectNode }: Globe3DProps) {
       drawLandmass([[-165, 65], [-125, 50], [-75, 45], [-80, 25], [-105, 20], [-125, 32], [-160, 55]]);
 
       // South America
-      drawLandmass([[-80, 10], [-35, -5], [-40, -22], [-70, -55], [-75, -40], [-80, -5]]);
-
-      // Indonesia & SE Asia Islands
-      drawLandmass([[95, 5], [108, -7], [118, -8], [115, 2]]);
-      drawLandmass([[115, -4], [126, -9], [125, -2]]);
+      drawLandmass([[-80, 10], [-35, -5], [-40, -22], [-70, -50], [-75, -45], [-80, -10]]);
     }
 
     const texture = new THREE.CanvasTexture(canvas);
-    const globeMat = new THREE.MeshStandardMaterial({
+    const globeMat = new THREE.MeshPhongMaterial({
       map: texture,
-      roughness: 0.6,
-      metalness: 0.2,
-      color: 0x1e293b,
+      shininess: 8,
+      specular: new THREE.Color(0x168C8A)
     });
-    const globe = new THREE.Mesh(globeGeo, globeMat);
-    scene.add(globe);
+    const globeMesh = new THREE.Mesh(globeGeo, globeMat);
+    scene.add(globeMesh);
 
-    // 3. Atmosphere Glow Ring
-    const atmosphereGeo = new THREE.SphereGeometry(globeRadius + 0.04, 32, 32);
-    const atmosphereMat = new THREE.MeshBasicMaterial({
-      color: 0x38bdf8,
+    // 3. Atmosphere Layer (Ocean Teal Glow)
+    const atmosGeo = new THREE.SphereGeometry(globeRadius * 1.08, 64, 64);
+    const atmosMat = new THREE.MeshBasicMaterial({
+      color: new THREE.Color(0x122B3A),
       transparent: true,
-      opacity: 0.12,
-      wireframe: true,
+      opacity: 0.15,
+      side: THREE.BackSide
     });
-    const atmosphere = new THREE.Mesh(atmosphereGeo, atmosphereMat);
-    scene.add(atmosphere);
+    const atmosMesh = new THREE.Mesh(atmosGeo, atmosMat);
+    scene.add(atmosMesh);
 
-    // 4. Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+    // 4. Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
     scene.add(ambientLight);
 
-    const dirLight1 = new THREE.DirectionalLight(0x60a5fa, 1.2);
-    dirLight1.position.set(5, 3, 5);
-    scene.add(dirLight1);
+    const dirLight = new THREE.DirectionalLight(0x168C8A, 1.2);
+    dirLight.position.set(5, 3, 5);
+    scene.add(dirLight);
 
-    const dirLight2 = new THREE.DirectionalLight(0x38bdf8, 0.8);
-    dirLight2.position.set(-5, -3, -5);
-    scene.add(dirLight2);
-
-    // Lat/Lon to 3D Spherical Vector conversion
+    // Helper: Convert Lat/Lon to 3D Coordinates
     const latLonToVector3 = (lat: number, lon: number, radius: number) => {
       const phi = (90 - lat) * (Math.PI / 180);
       const theta = (lon + 180) * (Math.PI / 180);
@@ -200,153 +186,112 @@ export default function Globe3D({ onSelectNode }: Globe3DProps) {
       return new THREE.Vector3(x, y, z);
     };
 
-    // 5. Global Country / Port Pickable Beacons
+    // 5. Render Port Nodes
     const nodeGroup = new THREE.Group();
-    GLOBAL_NODES.forEach(node => {
-      const pos = latLonToVector3(node.lat, node.lon, globeRadius + 0.03);
-      
-      const pinColor = node.type === 'DESTINATION' ? 0xf59e0b : (node.type === 'HUB' ? 0x38bdf8 : 0x10b981);
-      const pinGeo = new THREE.SphereGeometry(0.045, 16, 16);
-      const pinMat = new THREE.MeshBasicMaterial({ color: pinColor });
-      const pinMesh = new THREE.Mesh(pinGeo, pinMat);
-      pinMesh.position.copy(pos);
-      pinMesh.userData = { type: 'NODE', data: node };
-      nodeGroup.add(pinMesh);
+    const nodeMeshMap = new Map<string, { mesh: THREE.Mesh; node: GlobalLocationNode }>();
 
-      // Ring pulse
-      const ringGeo = new THREE.RingGeometry(0.06, 0.08, 16);
-      const ringMat = new THREE.MeshBasicMaterial({ color: pinColor, side: THREE.DoubleSide, transparent: true, opacity: 0.7 });
+    GLOBAL_NODES.forEach((node) => {
+      const pos = latLonToVector3(node.lat, node.lon, globeRadius + 0.02);
+      
+      // Node color coding: Emerald for Destination, Copper for Origin, Muted Blue for Hub
+      let nodeColor = 0x3B7189;
+      if (node.type === 'DESTINATION') nodeColor = 0x4B9A72;
+      else if (node.type === 'ORIGIN') nodeColor = 0xB9783E;
+
+      const markerGeo = new THREE.SphereGeometry(0.045, 16, 16);
+      const markerMat = new THREE.MeshBasicMaterial({ color: nodeColor });
+      const markerMesh = new THREE.Mesh(markerGeo, markerMat);
+      markerMesh.position.copy(pos);
+
+      // Pulse ring for ports
+      const ringGeo = new THREE.RingGeometry(0.06, 0.08, 32);
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: nodeColor,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.8
+      });
       const ringMesh = new THREE.Mesh(ringGeo, ringMat);
-      ringMesh.position.copy(pos);
-      ringMesh.lookAt(0, 0, 0);
-      nodeGroup.add(ringMesh);
+      ringMesh.position.copy(pos.clone().multiplyScalar(1.002));
+      ringMesh.lookAt(new THREE.Vector3(0, 0, 0));
+
+      const portGroup = new THREE.Group();
+      portGroup.add(markerMesh);
+      portGroup.add(ringMesh);
+
+      nodeGroup.add(portGroup);
+      nodeMeshMap.set(node.id, { mesh: markerMesh, node });
     });
     scene.add(nodeGroup);
 
-    // 6. Maritime Route Bezier Arcs & Particle Sparks
-    const particles: { mesh: THREE.Mesh; curve: THREE.QuadraticBezierCurve3; progress: number; speed: number }[] = [];
-    
-    ROUTE_ARCS.forEach(route => {
-      const p1 = latLonToVector3(route.originLat, route.originLon, globeRadius + 0.02);
-      const p2 = latLonToVector3(route.destLat, route.destLon, globeRadius + 0.02);
+    // 6. Render Maritime Shipping Route Arcs (Ocean Teal)
+    const arcGroup = new THREE.Group();
+    ROUTE_ARCS.forEach((arc) => {
+      const vStart = latLonToVector3(arc.originLat, arc.originLon, globeRadius + 0.02);
+      const vEnd = latLonToVector3(arc.destLat, arc.destLon, globeRadius + 0.02);
 
-      const mid = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
-      const distance = p1.distanceTo(p2);
-      mid.normalize().multiplyScalar(globeRadius + distance * 0.32);
+      // Interpolate curved 3D 3-point arc
+      const midPoint = vStart.clone().add(vEnd).multiplyScalar(0.5);
+      const distance = vStart.distanceTo(vEnd);
+      midPoint.setLength(globeRadius + 0.02 + distance * 0.25);
 
-      const curve = new THREE.QuadraticBezierCurve3(p1, mid, p2);
+      const curve = new THREE.QuadraticBezierCurve3(vStart, midPoint, vEnd);
       const points = curve.getPoints(50);
-      const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
-      const lineMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.7 });
-      const arcLine = new THREE.Line(lineGeo, lineMat);
-      scene.add(arcLine);
+      const curveGeo = new THREE.BufferGeometry().setFromPoints(points);
 
-      const sparkGeo = new THREE.SphereGeometry(0.035, 8, 8);
-      const sparkMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
-      const sparkMesh = new THREE.Mesh(sparkGeo, sparkMat);
-      scene.add(sparkMesh);
-
-      particles.push({
-        mesh: sparkMesh,
-        curve,
-        progress: Math.random(),
-        speed: 0.003 + Math.random() * 0.002
+      const curveMat = new THREE.LineDashedMaterial({
+        color: 0x168C8A,
+        dashSize: 0.15,
+        gapSize: 0.08,
+        linewidth: 2,
+        transparent: true,
+        opacity: 0.9
       });
+
+      const line = new THREE.Line(curveGeo, curveMat);
+      line.computeLineDistances();
+      arcGroup.add(line);
     });
+    scene.add(arcGroup);
 
-    // 7. Raycasting & Interaction Handlers
-    let isMouseDown = false;
-    let previousMousePosition = { x: 0, y: 0 };
-
-    const onMouseDown = (e: MouseEvent) => {
-      isMouseDown = true;
-      setIsRotating(false);
-      previousMousePosition = { x: e.clientX, y: e.clientY };
-    };
-
-    const onMouseMove = (e: MouseEvent) => {
-      if (!isMouseDown) {
-        // Raycasting for hover tooltip
-        const rect = renderer.domElement.getBoundingClientRect();
-        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-
-        raycaster.setFromCamera(mouse, camera);
-        const intersects = raycaster.intersectObjects(nodeGroup.children);
-
-        if (intersects.length > 0) {
-          const obj = intersects[0].object;
-          if (obj.userData && obj.userData.data) {
-            setHoveredNode(obj.userData.data);
-            container.style.cursor = 'pointer';
-            return;
-          }
-        }
-        setHoveredNode(null);
-        container.style.cursor = 'grab';
-        return;
-      }
-
-      const deltaX = e.clientX - previousMousePosition.x;
-      const deltaY = e.clientY - previousMousePosition.y;
-
-      globe.rotation.y += deltaX * 0.005;
-      globe.rotation.x += deltaY * 0.005;
-      nodeGroup.rotation.y += deltaX * 0.005;
-      nodeGroup.rotation.x += deltaY * 0.005;
-
-      previousMousePosition = { x: e.clientX, y: e.clientY };
-    };
-
-    const onMouseUp = () => {
-      isMouseDown = false;
-    };
-
+    // 7. Raycaster for Interaction
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
-    const onClick = (e: MouseEvent) => {
+    const handlePointerDown = (event: MouseEvent) => {
       const rect = renderer.domElement.getBoundingClientRect();
-      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
       raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(nodeGroup.children);
-      
+      const meshes = Array.from(nodeMeshMap.values()).map(v => v.mesh);
+      const intersects = raycaster.intersectObjects(meshes);
+
       if (intersects.length > 0) {
-        const obj = intersects[0].object;
-        if (obj.userData && obj.userData.data) {
-          const targetNode = obj.userData.data;
-          setSelectedNode(targetNode);
-          if (onSelectNode) {
-            onSelectNode(targetNode);
+        const hitMesh = intersects[0].object as THREE.Mesh;
+        for (const entry of nodeMeshMap.values()) {
+          if (entry.mesh === hitMesh) {
+            setSelectedNode(entry.node);
+            if (onSelectNode) onSelectNode(entry.node);
+            break;
           }
         }
       }
     };
 
-    renderer.domElement.addEventListener('mousedown', onMouseDown);
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-    renderer.domElement.addEventListener('click', onClick);
+    const domElem = renderer.domElement;
+    domElem.addEventListener('pointerdown', handlePointerDown);
 
     // 8. Animation Loop
     let animationFrameId: number;
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
 
-      if (isRotating && !isMouseDown) {
-        globe.rotation.y += 0.0015;
-        nodeGroup.rotation.y += 0.0015;
-        atmosphere.rotation.y += 0.001;
+      if (isRotating) {
+        globeMesh.rotation.y += 0.0012;
+        nodeGroup.rotation.y += 0.0012;
+        arcGroup.rotation.y += 0.0012;
       }
-
-      particles.forEach(p => {
-        p.progress += p.speed;
-        if (p.progress > 1) p.progress = 0;
-        const pt = p.curve.getPoint(p.progress);
-        p.mesh.position.copy(pt);
-      });
 
       renderer.render(scene, camera);
     };
@@ -354,8 +299,8 @@ export default function Globe3D({ onSelectNode }: Globe3DProps) {
 
     const handleResize = () => {
       if (!container) return;
-      const w = container.clientWidth;
-      const h = container.clientHeight;
+      const w = container.clientWidth || 800;
+      const h = container.clientHeight || 450;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
@@ -365,99 +310,51 @@ export default function Globe3D({ onSelectNode }: Globe3DProps) {
     return () => {
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener('resize', handleResize);
-      renderer.domElement.removeEventListener('mousedown', onMouseDown);
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-      renderer.domElement.removeEventListener('click', onClick);
+      domElem.removeEventListener('pointerdown', handlePointerDown);
       if (container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }
     };
-  }, [isRotating]);
-
-  const displayNode = hoveredNode || selectedNode;
+  }, [isRotating, onSelectNode]);
 
   return (
-    <div className="relative w-full h-full min-h-[440px] bg-slate-900 rounded-lg overflow-hidden border border-slate-800 shadow-md">
-      {/* 3D WebGL Canvas Container */}
-      <div ref={mountRef} className="w-full h-full" />
+    <div className="relative w-full h-full min-h-[460px] card-slate-navy overflow-hidden border border-[#23303A]">
+      {/* 3D Canvas Container */}
+      <div ref={mountRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
 
-      {/* Orbit Coordinates Overlay */}
-      <div className="absolute top-3 right-4 z-10 text-right font-mono text-[10px] text-slate-400 font-semibold tracking-wider">
-        ORBIT 17.68° N | 83.21° E • 15 NATIONS ACTIVE
-      </div>
-
-      {/* Dynamic Hover/Click Floating Tooltip */}
-      {displayNode && (
-        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20 bg-slate-900/95 border border-slate-700 px-4 py-2.5 rounded-lg shadow-2xl backdrop-blur-md flex items-center gap-3 animate-fade-in-up">
-          <span className={`w-3 h-3 rounded-full ${
-            displayNode.type === 'DESTINATION' ? 'bg-amber-500' :
-            displayNode.type === 'HUB' ? 'bg-sky-400' : 'bg-emerald-400'
-          } animate-pulse`} />
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-extrabold text-slate-100">{displayNode.name}</span>
-              <span className="text-xs font-mono font-bold text-sky-400">({displayNode.code})</span>
-            </div>
-            <span className="text-[10px] text-slate-400 font-medium">
-              {displayNode.country} • Queue: <strong className="text-slate-200">{displayNode.congestion}%</strong> • Draft: <strong className="text-slate-200">{displayNode.draft}m</strong>
-            </span>
-          </div>
+      {/* Top Left Overlay Controls */}
+      <div className="absolute top-4 left-4 z-10 font-mono space-y-2 select-none">
+        <div className="bg-[#070A0D]/90 border border-[#23303A] p-3 rounded-md backdrop-blur-md">
+          <span className="text-[10px] text-[#A8B2B7] uppercase font-bold tracking-wider block">SAIL GLOBAL MARITIME NETWORK</span>
+          <span className="text-xs font-black text-[#EDF1F0] block mt-0.5">{selectedNode.name} ({selectedNode.country})</span>
+          <span className="text-[10px] text-[#168C8A] font-bold block mt-0.5">TYPE: {selectedNode.type} • CONGESTION: {selectedNode.congestion}%</span>
         </div>
-      )}
 
-      {/* Bottom Floating Control "Resume rotation" Button */}
-      <div className="absolute bottom-4 left-4 z-10 flex items-center gap-2">
         <button
           onClick={() => setIsRotating(!isRotating)}
-          className="bg-slate-900/90 hover:bg-slate-800 border border-slate-700 text-slate-200 px-3.5 py-1.5 rounded-lg text-xs font-semibold shadow-md transition"
+          className="bg-[#10161B]/90 hover:bg-[#1B252C] border border-[#23303A] text-[#A8B2B7] hover:text-[#EDF1F0] text-[10px] font-bold px-3 py-1.5 rounded-md backdrop-blur-md transition"
         >
-          {isRotating ? 'Pause rotation' : 'Resume rotation'}
+          {isRotating ? 'Pause Rotation' : 'Resume Rotation'}
         </button>
       </div>
 
-      {/* Selected Country Details Drawer */}
-      {selectedNode && (
-        <div className="absolute bottom-4 right-4 z-20 bg-slate-900/95 border border-slate-700 p-4 rounded-lg text-xs text-slate-100 space-y-2 max-w-xs shadow-2xl backdrop-blur-md">
-          <div className="flex justify-between items-start">
-            <div>
-              <span className="text-[10px] font-mono text-sky-400 uppercase font-bold block">SELECTED MARITIME NODE</span>
-              <h4 className="font-bold text-sm text-slate-100">{selectedNode.name}, {selectedNode.country}</h4>
-            </div>
-            <span className="text-xs font-mono font-bold text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">
-              {selectedNode.code}
-            </span>
-          </div>
-          <div className="grid grid-cols-2 gap-2 text-[11px] font-mono border-t border-slate-800 pt-2">
-            <div>
-              <span className="text-slate-400 block text-[10px]">Max Draft:</span>
-              <span className="font-bold text-slate-100">{selectedNode.draft} m</span>
-            </div>
-            <div>
-              <span className="text-slate-400 block text-[10px]">Queue Score:</span>
-              <span className="font-bold text-sky-400">{selectedNode.congestion}%</span>
-            </div>
-          </div>
-          <div className="text-[11px] text-slate-300 border-t border-slate-800/80 pt-2 space-y-1">
-            <span className="text-slate-400 block text-[10px] font-bold uppercase">SAIL Corridor Relevance:</span>
-            <p className="leading-snug">{selectedNode.sailRelevance}</p>
-          </div>
+      {/* Top Right Legend */}
+      <div className="absolute top-4 right-4 z-10 bg-[#070A0D]/90 border border-[#23303A] p-3 rounded-md backdrop-blur-md font-mono text-[10px] space-y-1.5 select-none">
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#4B9A72] block" />
+          <span className="text-[#EDF1F0]">Discharge Terminal (India)</span>
         </div>
-      )}
-
-      {/* Maritime Route Legend */}
-      <div className="absolute bottom-4 left-44 z-10 hidden sm:flex items-center gap-4 bg-slate-900/80 border border-slate-800 px-3 py-1.5 rounded-lg text-[10px] font-medium text-slate-400">
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-amber-500" />
-          <span>SAIL Import Terminal</span>
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#B9783E] block" />
+          <span className="text-[#EDF1F0]">Loading Origin (Global)</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-400" />
-          <span>Raw Material Origin</span>
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#3B7189] block" />
+          <span className="text-[#EDF1F0]">Maritime Hub / Bunkering</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-sky-400" />
-          <span>Global Trade Hub</span>
+        <div className="flex items-center gap-2 pt-1 border-t border-[#23303A]">
+          <span className="w-4 h-0.5 bg-[#168C8A] block" />
+          <span className="text-[#168C8A] font-bold">Active Fleet Shipping Route</span>
         </div>
       </div>
     </div>

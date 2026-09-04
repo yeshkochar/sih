@@ -12,16 +12,19 @@ from backend.app.models.forecast import Forecast
 from backend.app.models.recommendation import Recommendation
 from backend.app.models.disruption import Disruption
 from backend.app.models.audit_log import AuditLog
+from backend.app.models.actual_voyage import ActualVoyageData
 from backend.app.schemas.schemas import (
     PortOut, VesselOut, FreightRateOut, CargoRequestIn, CargoRequestOut,
     ForecastIn, ForecastResponse, RecommendationOut, OverrideIn,
     DisruptionOut, AuditLogOut, ScenarioIn, DashboardSummary, AlertItem,
-    DataHealthResponse, DataMetadata, RAGQueryIn, RAGQueryResponse
+    DataHealthResponse, DataMetadata, RAGQueryIn, RAGQueryResponse,
+    MonteCarloIn, ActualVoyageIn, ActualVoyageOut
 )
 from backend.app.services.forecasting import get_forecast
 from backend.app.services.feasibility import check_feasibility
 from backend.app.services.optimization import optimize_charter
-from backend.app.services.scenarios import simulate_scenario
+from backend.app.services.scenarios import simulate_scenario, run_monte_carlo_simulation
+from backend.app.services.freshness import evaluate_recommendation_freshness
 from backend.app.services.ingestion import get_data_health_summary
 from backend.app.api.websocket_manager import manager
 from backend.app.utils.demo_data import reset_demo_data
@@ -361,3 +364,106 @@ def handle_rag_query(payload: RAGQueryIn, db: Session = Depends(get_db)):
     
     res = execute_rag_query(db, payload.question, payload.recommendation_id)
     return res
+
+# 16. MONTE CARLO RISK SIMULATION
+@router.post("/scenarios/monte-carlo")
+def handle_monte_carlo_simulation(payload: MonteCarloIn, db: Session = Depends(get_db)):
+    res = run_monte_carlo_simulation(
+        db=db,
+        request_id=payload.request_id,
+        n_simulations=payload.n_simulations if payload.n_simulations else 1000,
+        freight_volatility_pct=payload.freight_volatility_pct if payload.freight_volatility_pct else 10.0,
+        fuel_volatility_pct=payload.fuel_volatility_pct if payload.fuel_volatility_pct else 12.0,
+        fx_volatility_pct=payload.fx_volatility_pct if payload.fx_volatility_pct else 5.0,
+        congestion_std_hours=payload.congestion_std_hours if payload.congestion_std_hours else 12.0
+    )
+    if not res:
+        raise HTTPException(status_code=404, detail="Cargo request context not found")
+    return res
+
+# 17. DECISION REPLAY & FRESHNESS
+@router.get("/optimizer/recommendations/{rec_id}/replay")
+def replay_decision(rec_id: int, db: Session = Depends(get_db)):
+    res = evaluate_recommendation_freshness(db, rec_id)
+    if not res:
+        raise HTTPException(status_code=404, detail="Recommendation decision snapshot not found")
+    return res
+
+@router.get("/optimizer/recommendations/{rec_id}/freshness")
+def check_freshness(rec_id: int, db: Session = Depends(get_db)):
+    res = evaluate_recommendation_freshness(db, rec_id)
+    if not res:
+        raise HTTPException(status_code=404, detail="Recommendation not found")
+    return {
+        "recommendation_id": rec_id,
+        "freshness_status": res["freshness_status"],
+        "diff_summary": res["diff_summary"],
+        "historical_inputs": res["historical_inputs"],
+        "live_inputs": res["live_inputs"]
+    }
+
+# 18. PREDICTION VS ACTUAL (ACTUAL VOYAGE OUTCOMES)
+@router.post("/actuals", response_model=ActualVoyageOut)
+def record_actual_voyage(payload: ActualVoyageIn, db: Session = Depends(get_db)):
+    rate_err = ((payload.actual_freight_rate - payload.predicted_freight_rate) / max(0.1, payload.predicted_freight_rate)) * 100.0
+    cost_err = ((payload.actual_total_cost - payload.predicted_total_cost) / max(1.0, payload.predicted_total_cost)) * 100.0
+    time_err = payload.actual_transit_days - payload.predicted_transit_days
+
+    actual_rec = ActualVoyageData(
+        recommendation_id=payload.recommendation_id,
+        origin_port=payload.origin_port,
+        destination_port=payload.destination_port,
+        vessel_name=payload.vessel_name,
+        commodity=payload.commodity,
+        quantity_mt=payload.quantity_mt,
+        predicted_freight_rate=payload.predicted_freight_rate,
+        predicted_total_cost=payload.predicted_total_cost,
+        predicted_transit_days=payload.predicted_transit_days,
+        predicted_idle_hours=payload.predicted_idle_hours,
+        actual_freight_rate=payload.actual_freight_rate,
+        actual_total_cost=payload.actual_total_cost,
+        actual_transit_days=payload.actual_transit_days,
+        actual_idle_hours=payload.actual_idle_hours,
+        actual_arrival_date=payload.actual_arrival_date,
+        rate_error_pct=round(rate_err, 2),
+        cost_error_pct=round(cost_err, 2),
+        time_error_days=round(time_err, 1),
+        notes=payload.notes
+    )
+    db.add(actual_rec)
+    db.commit()
+    db.refresh(actual_rec)
+    return actual_rec
+
+@router.get("/actuals", response_model=List[ActualVoyageOut])
+def get_actual_voyages(db: Session = Depends(get_db)):
+    return db.query(ActualVoyageData).order_by(ActualVoyageData.created_at.desc()).all()
+
+@router.get("/actuals/metrics")
+def get_actuals_evaluation_metrics(db: Session = Depends(get_db)):
+    actuals = db.query(ActualVoyageData).all()
+    if not actuals:
+        return {
+            "total_records": 0,
+            "mae_freight_rate": 0.0,
+            "rmse_freight_rate": 0.0,
+            "mape_freight_rate": 0.0,
+            "mape_total_cost": 0.0,
+            "mean_time_error_days": 0.0
+        }
+
+    import numpy as np
+    rate_errs = [abs(a.actual_freight_rate - a.predicted_freight_rate) for a in actuals]
+    rate_pcts = [abs(a.rate_error_pct) for a in actuals]
+    cost_pcts = [abs(a.cost_error_pct) for a in actuals]
+    time_errs = [a.time_error_days for a in actuals]
+
+    return {
+        "total_records": len(actuals),
+        "mae_freight_rate": round(float(np.mean(rate_errs)), 2),
+        "rmse_freight_rate": round(float(np.sqrt(np.mean([e**2 for e in rate_errs]))), 2),
+        "mape_freight_rate": round(float(np.mean(rate_pcts)), 2),
+        "mape_total_cost": round(float(np.mean(cost_pcts)), 2),
+        "mean_time_error_days": round(float(np.mean(time_errs)), 1)
+    }
+

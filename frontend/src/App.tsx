@@ -13,7 +13,11 @@ import {
   Activity, 
   Sun, 
   Moon,
-  Home
+  Home,
+  ChevronDown,
+  Layers,
+  Menu,
+  X
 } from 'lucide-react';
 import Login from './pages/Login';
 import HomePage from './pages/HomePage';
@@ -26,6 +30,7 @@ import AuditLogs from './pages/AuditLogs';
 import DataHealth from './pages/DataHealth';
 import ConnectionStatus from './components/ConnectionStatus';
 import MaritimeBackground from './components/MaritimeBackground';
+import SAILLogo from './components/SAILLogo';
 import { useWebSocket, WebSocketEvent } from './hooks/useWebSocket';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 
@@ -35,7 +40,10 @@ function AppContent() {
 
   const [user, setUser] = useState<any>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<string>('home');
+  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   
   const [ports, setPorts] = useState<any[]>([]);
   const [vessels, setVessels] = useState<any[]>([]);
@@ -136,177 +144,334 @@ function AppContent() {
     return <Login onLoginSuccess={handleLoginSuccess} />;
   }
 
-  const navItems = [
-    { id: 'home', index: '00', label: 'Home', icon: Home },
-    { id: 'dashboard', index: '01', label: 'Command Center', icon: LayoutDashboard },
-    { id: 'forecast', index: '02', label: 'Rate Forecasting', icon: Calendar },
-    { id: 'optimizer', index: '03', label: 'Charter Optimizer', icon: Ship },
-    { id: 'ports', index: '04', label: 'Port Intelligence', icon: Compass },
-    { id: 'scenarios', index: '05', label: 'Scenario Simulator', icon: Sliders },
-    { id: 'health', index: '06', label: 'Data Matrix', icon: Activity },
-    { id: 'audit', index: '07', label: 'Audit Trail', icon: FileText }
-  ];
-
   return (
-    <div className={`relative min-h-screen flex flex-col overflow-x-hidden font-sans select-none transition-colors duration-300 ${isLight ? 'bg-slate-100 text-slate-900' : 'bg-black text-slate-100'}`}>
+    <div className={`relative min-h-screen flex flex-col font-sans select-none transition-colors duration-300 ${
+      isLight ? 'bg-slate-100 text-slate-900' : 'bg-black text-slate-100'
+    }`}>
       
       {/* Executive Dynamic Canvas Background */}
       <MaritimeBackground />
 
-      {/* SLEEK EXECUTIVE TOP FLOATING NAVIGATION DOCK (Replaces Left Sidebar) */}
-      <header className={`sticky top-0 z-30 h-16 border-b flex items-center justify-between px-6 shrink-0 transition-colors duration-300 backdrop-blur-xl ${
-        isLight ? 'bg-white/90 border-slate-200 shadow-sm' : 'bg-slate-950/90 border-slate-800 shadow-xl'
+      {/* ARCHITECTURAL TOP HEADER: BRAND → PRIMARY NAV → FLEXIBLE SPACE → STATUS → UTILITIES → ACCOUNT */}
+      <header className={`sticky top-0 z-40 h-14 border-b flex items-center justify-between px-4 sm:px-6 shrink-0 transition-colors duration-200 backdrop-blur-xl ${
+        isLight ? 'bg-white/95 border-slate-200 shadow-sm' : 'bg-[#0B0F17]/95 border-slate-800/80 shadow-lg'
       }`}>
         
-        {/* Far Left Brand Logo Emblem */}
+        {/* BRAND */}
         <div 
-          onClick={() => setActiveTab('home')}
-          className="flex items-center gap-3 cursor-pointer group shrink-0"
+          onClick={() => { setActiveTab('dashboard'); setMoreMenuOpen(false); }}
+          className="cursor-pointer flex items-center gap-3 shrink-0 mr-2"
         >
-          <div className={`h-9 w-9 border rounded-xl flex items-center justify-center font-black text-xs shadow-md transition-transform group-hover:scale-105 ${
-            isLight ? 'bg-blue-900 border-blue-800 text-white' : 'bg-slate-900 border-slate-700 text-sky-400'
-          }`}>
-            SA
-          </div>
-          <div className="flex flex-col min-w-0">
-            <span className={`font-extrabold tracking-tight text-xs truncate ${isLight ? 'text-slate-900' : 'text-slate-100'}`}>
-              SAIL Freight Desk
-            </span>
-            <span className={`text-[9px] font-semibold tracking-wider uppercase truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-              STEEL AUTHORITY OF INDIA
-            </span>
-          </div>
+          <SAILLogo />
         </div>
 
-        {/* Center Dock: Horizontal Nav Pills */}
-        <nav className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-900/40 border border-slate-800/60 backdrop-blur-md">
-          {navItems.map((item) => {
-            const isActive = activeTab === item.id;
-            const IconComponent = item.icon;
-            
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer ${
-                  isActive 
-                    ? 'nav-pill-active shadow-md' 
-                    : 'nav-pill-inactive'
-                }`}
-              >
-                <IconComponent className="h-3.5 w-3.5" />
-                <span className="truncate">{item.label}</span>
-              </button>
-            );
-          })}
-        </nav>
+        <div className="h-4 w-px bg-slate-800/80 hidden xl:block mx-1" />
 
-        {/* Far Right Executive Controls */}
-        <div className="flex items-center gap-3 shrink-0">
-          
-          {/* LIGHT / DARK THEME TOGGLE SWITCH */}
+        {/* PRIMARY NAVIGATION (Architectural Text Links with Bottom Accent Lines) */}
+        <nav className="hidden lg:flex items-center gap-0.5 font-mono text-xs">
+          {/* Command Center */}
           <button
-            onClick={toggleTheme}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-mono font-bold transition-all duration-200 shadow-sm cursor-pointer active:scale-95 ${
-              isLight 
-                ? 'bg-amber-50/80 border-amber-300 text-amber-900 hover:bg-amber-100 hover:border-amber-400' 
-                : 'bg-slate-900 border-slate-800 text-slate-200 hover:bg-slate-800 hover:border-slate-700'
-            }`}
-            title={`Switch to ${isLight ? 'Dark' : 'Light'} Mode`}
+            onClick={() => { setActiveTab('dashboard'); setMoreMenuOpen(false); }}
+            className={activeTab === 'dashboard' ? 'nav-link-active-architectural' : 'nav-link-architectural'}
           >
-            {isLight ? (
-              <>
-                <Sun className="h-4 w-4 text-amber-600 fill-amber-500/20" />
-                <span className="hidden sm:inline text-[11px] tracking-wide text-amber-900 font-extrabold">LIGHT</span>
-              </>
-            ) : (
-              <>
-                <Moon className="h-4 w-4 text-sky-400 fill-sky-400/20" />
-                <span className="hidden sm:inline text-[11px] tracking-wide text-sky-300 font-extrabold">DARK</span>
-              </>
-            )}
+            <div className="flex items-center gap-1.5">
+              <LayoutDashboard className="h-3.5 w-3.5" />
+              <span>Command Center</span>
+            </div>
           </button>
 
-          {showResetSuccess && (
-            <div className="badge-slate-emerald px-3 py-1 rounded-md text-[10px] font-mono font-bold flex items-center gap-1.5 animate-fade-in-up">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              <span>RESEEDED</span>
+          {/* Freight Forecast */}
+          <button
+            onClick={() => { setActiveTab('forecast'); setMoreMenuOpen(false); }}
+            className={activeTab === 'forecast' ? 'nav-link-active-architectural' : 'nav-link-architectural'}
+          >
+            <div className="flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5" />
+              <span>Freight Forecast</span>
             </div>
-          )}
-          
-          {/* Scenario Reseeder Dropdown */}
-          <div className={`hidden sm:flex items-center rounded-lg border p-1 ${
-            isLight ? 'bg-slate-100 border-slate-300' : 'bg-slate-950 border-slate-800'
-          }`}>
-            <select
-              value={resetScenario}
-              onChange={(e) => setResetScenario(e.target.value)}
-              className={`text-xs px-2 py-1 rounded border focus:outline-none font-mono cursor-pointer font-semibold ${
-                isLight 
-                  ? 'bg-white text-slate-800 border-slate-300' 
-                  : 'bg-slate-900 text-slate-200 border-slate-800'
-              }`}
-            >
-              <option value="normal">Normal Market</option>
-              <option value="freight_spike">Freight Spike</option>
-              <option value="port_congestion">Port Congestion</option>
-              <option value="fuel_price_shock">Fuel Price Shock</option>
-              <option value="vessel_shortage">Vessel Shortage</option>
-            </select>
-            <button
-              onClick={handleResetDemoData}
-              disabled={resetting}
-              className="btn-navy-primary text-[10px] font-mono uppercase font-bold px-2 py-1 ml-1 rounded transition flex items-center gap-1.5 disabled:opacity-50"
-              title="Reseed demo dataset"
-            >
-              {resetting ? <RefreshCw className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-            </button>
-          </div>
+          </button>
 
+          {/* Charter Optimizer */}
+          <button
+            onClick={() => { setActiveTab('optimizer'); setMoreMenuOpen(false); }}
+            className={activeTab === 'optimizer' ? 'nav-link-active-architectural' : 'nav-link-architectural'}
+          >
+            <div className="flex items-center gap-1.5">
+              <Ship className="h-3.5 w-3.5" />
+              <span>Charter Optimizer</span>
+            </div>
+          </button>
+
+          {/* Port Intelligence */}
+          <button
+            onClick={() => { setActiveTab('ports'); setMoreMenuOpen(false); }}
+            className={activeTab === 'ports' ? 'nav-link-active-architectural' : 'nav-link-architectural'}
+          >
+            <div className="flex items-center gap-1.5">
+              <Compass className="h-3.5 w-3.5" />
+              <span>Port Intelligence</span>
+            </div>
+          </button>
+
+          {/* Scenario Simulator */}
+          <button
+            onClick={() => { setActiveTab('scenarios'); setMoreMenuOpen(false); }}
+            className={activeTab === 'scenarios' ? 'nav-link-active-architectural' : 'nav-link-architectural'}
+          >
+            <div className="flex items-center gap-1.5">
+              <Sliders className="h-3.5 w-3.5" />
+              <span>Scenario Simulator</span>
+            </div>
+          </button>
+
+          {/* More / Intelligence Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setMoreMenuOpen(!moreMenuOpen)}
+              className={(activeTab === 'health' || activeTab === 'audit' || activeTab === 'home') ? 'nav-link-active-architectural flex items-center gap-1' : 'nav-link-architectural flex items-center gap-1'}
+            >
+              <Layers className="h-3.5 w-3.5" />
+              <span>More</span>
+              <ChevronDown className={`h-3 w-3 transition-transform ${moreMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {moreMenuOpen && (
+              <div className={`absolute top-full mt-1.5 left-0 w-60 p-2 rounded-xl border shadow-xl z-50 backdrop-blur-xl ${
+                isLight ? 'bg-white border-slate-200 text-slate-900 shadow-slate-300/40' : 'bg-[#0F172A] border-slate-800 text-slate-100 shadow-black/80'
+              }`}>
+                <div className="px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800/40 mb-1">
+                  ANALYTICS & AUDIT
+                </div>
+                
+                <button
+                  onClick={() => { setActiveTab('health'); setMoreMenuOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 p-2 rounded-lg text-xs font-semibold text-left transition ${
+                    activeTab === 'health' ? (isLight ? 'bg-blue-50 text-blue-900 font-bold' : 'bg-slate-800 text-sky-300 font-bold') : (isLight ? 'hover:bg-slate-100 text-slate-700' : 'hover:bg-slate-800/60 text-slate-300')
+                  }`}
+                >
+                  <Activity className="h-3.5 w-3.5 text-sky-400 shrink-0" />
+                  <div>
+                    <span className="block">Data Telemetry Matrix</span>
+                    <span className="text-[9px] text-slate-400 block font-normal">AIS & API pipeline status</span>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => { setActiveTab('audit'); setMoreMenuOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 p-2 rounded-lg text-xs font-semibold text-left transition ${
+                    activeTab === 'audit' ? (isLight ? 'bg-blue-50 text-blue-900 font-bold' : 'bg-slate-800 text-sky-300 font-bold') : (isLight ? 'hover:bg-slate-100 text-slate-700' : 'hover:bg-slate-800/60 text-slate-300')
+                  }`}
+                >
+                  <FileText className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                  <div>
+                    <span className="block">Decision Audit Trail</span>
+                    <span className="text-[9px] text-slate-400 block font-normal">Historical fixture log</span>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => { setActiveTab('home'); setMoreMenuOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 p-2 rounded-lg text-xs font-semibold text-left transition ${
+                    activeTab === 'home' ? (isLight ? 'bg-blue-50 text-blue-900 font-bold' : 'bg-slate-800 text-sky-300 font-bold') : (isLight ? 'hover:bg-slate-100 text-slate-700' : 'hover:bg-slate-800/60 text-slate-300')
+                  }`}
+                >
+                  <Home className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+                  <div>
+                    <span className="block">Parallax Portal Home</span>
+                    <span className="text-[9px] text-slate-400 block font-normal">Landing showcase page</span>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
+        </nav>
+
+        {/* FLEXIBLE SPACE */}
+        <div className="flex-1" />
+
+        {/* SYSTEM STATUS → MARKET/UTILITY → ACCOUNT */}
+        <div className="flex items-center gap-3 shrink-0 font-mono text-xs">
+          
+          {/* SYSTEM STATUS */}
           <ConnectionStatus status={connectionStatus} lastSyncTime={lastSyncTime} />
 
-          {/* User Account / Sign Out Pill */}
-          <div className="flex items-center gap-2 border-l border-slate-700/50 pl-3">
-            <div className={`h-8 w-8 rounded-lg flex items-center justify-center border ${
-              isLight ? 'bg-slate-100 text-blue-700 border-slate-300' : 'bg-slate-900 text-sky-400 border-slate-800'
-            }`} title={`${user.username} (${user.role})`}>
-              <User className="h-4 w-4" />
+          <div className="h-4 w-px bg-slate-800/80 hidden sm:block" />
+
+          {/* MARKET / UTILITY CONTROLS */}
+          <div className="hidden sm:flex items-center gap-2">
+            {showResetSuccess && (
+              <div className="badge-slate-emerald px-2 py-0.5 rounded text-[10px] font-mono font-bold flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3" />
+                <span>RESEEDED</span>
+              </div>
+            )}
+
+            {/* Scenario Selector */}
+            <div className={`flex items-center rounded border px-2 py-1 ${
+              isLight ? 'bg-slate-50 border-slate-300 text-slate-800' : 'bg-slate-900/80 border-slate-800 text-slate-300'
+            }`}>
+              <span className="text-[9px] font-bold text-slate-400 mr-1.5 uppercase">SCENARIO:</span>
+              <select
+                value={resetScenario}
+                onChange={(e) => setResetScenario(e.target.value)}
+                className="bg-transparent text-xs focus:outline-none cursor-pointer font-bold"
+              >
+                <option value="normal" className={isLight ? 'bg-white text-slate-900' : 'bg-slate-900 text-slate-100'}>Normal Market</option>
+                <option value="freight_spike" className={isLight ? 'bg-white text-slate-900' : 'bg-slate-900 text-slate-100'}>Freight Spike</option>
+                <option value="port_congestion" className={isLight ? 'bg-white text-slate-900' : 'bg-slate-900 text-slate-100'}>Port Congestion</option>
+                <option value="fuel_price_shock" className={isLight ? 'bg-white text-slate-900' : 'bg-slate-900 text-slate-100'}>Fuel Price Shock</option>
+                <option value="vessel_shortage" className={isLight ? 'bg-white text-slate-900' : 'bg-slate-900 text-slate-100'}>Vessel Shortage</option>
+              </select>
+              <button
+                onClick={handleResetDemoData}
+                disabled={resetting}
+                className="ml-1.5 p-0.5 rounded hover:bg-slate-800/50 text-sky-400 transition"
+                title="Reseed market scenario"
+              >
+                <RefreshCw className={`h-3 w-3 ${resetting ? 'animate-spin' : ''}`} />
+              </button>
             </div>
+
+            {/* Theme Toggle Button */}
             <button
-              onClick={handleLogout}
-              className={`p-2 rounded-lg border text-xs font-semibold transition ${
-                isLight 
-                  ? 'bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-700 border-slate-300 hover:border-rose-300' 
-                  : 'bg-slate-900 hover:bg-rose-950/40 text-slate-400 hover:text-rose-300 border-slate-800 hover:border-rose-800'
+              onClick={toggleTheme}
+              className={`p-1.5 rounded border text-xs transition cursor-pointer ${
+                isLight ? 'bg-slate-50 border-slate-300 text-amber-700 hover:bg-slate-100' : 'bg-slate-900/80 border-slate-800 text-sky-400 hover:bg-slate-800'
               }`}
-              title="Sign Out"
+              title={`Switch to ${isLight ? 'Dark' : 'Light'} Mode`}
             >
-              <LogOut className="h-3.5 w-3.5" />
+              {isLight ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
             </button>
           </div>
+
+          <div className="h-4 w-px bg-slate-800/80 hidden sm:block" />
+
+          {/* ACCOUNT CONTROL */}
+          <div className="relative">
+            <button
+              onClick={() => setUserMenuOpen(!userMenuOpen)}
+              className={`flex items-center gap-2 px-2.5 py-1 rounded border text-xs font-semibold transition cursor-pointer ${
+                isLight 
+                  ? 'bg-slate-50 hover:bg-slate-100 border-slate-300 text-slate-900' 
+                  : 'bg-slate-900/80 hover:bg-slate-800 border-slate-800 text-slate-100'
+              }`}
+            >
+              <div className={`h-5 w-5 rounded flex items-center justify-center text-[10px] font-black ${
+                isLight ? 'bg-blue-900 text-white' : 'bg-sky-500/20 text-sky-400'
+              }`}>
+                <User className="h-3 w-3" />
+              </div>
+              <span className="hidden md:inline font-extrabold">{user.username}</span>
+              <ChevronDown className={`h-3 w-3 text-slate-400 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {userMenuOpen && (
+              <div className={`absolute top-full mt-1.5 right-0 w-52 p-3 rounded-xl border shadow-xl z-50 backdrop-blur-xl ${
+                isLight ? 'bg-white border-slate-200 text-slate-900 shadow-slate-300/50' : 'bg-[#0F172A] border-slate-800 text-slate-100 shadow-black/80'
+              }`}>
+                <div className="pb-2 mb-2 border-b border-slate-800/60 font-mono text-[11px]">
+                  <span className="font-extrabold block">{user.username}</span>
+                  <span className="text-[9px] text-slate-400 uppercase">{user.role} • SAIL Operations</span>
+                </div>
+
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold text-rose-400 hover:bg-rose-950/30 transition text-left cursor-pointer"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Mobile Drawer Hamburger Button */}
+          <button
+            onClick={() => setMobileDrawerOpen(!mobileDrawerOpen)}
+            className="lg:hidden p-1.5 rounded border border-slate-800 text-slate-300 hover:bg-slate-800"
+          >
+            {mobileDrawerOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+          </button>
 
         </div>
       </header>
 
-      {/* Mobile Horizontal Sub-Header Navigation Bar */}
-      <div className="lg:hidden flex items-center gap-2 overflow-x-auto p-2 border-b border-slate-800/80 bg-slate-950/60 shrink-0">
-        {navItems.map((item) => {
-          const isActive = activeTab === item.id;
-          const IconComponent = item.icon;
-          return (
+      {/* MOBILE / TABLET SLIDE-OVER COMMAND DRAWER */}
+      {mobileDrawerOpen && (
+        <div className={`lg:hidden border-b p-4 space-y-3 z-30 font-mono text-xs ${
+          isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-[#0F172A] border-slate-800 text-slate-100'
+        }`}>
+          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+            SAIL FREIGHT DESK MODULES
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
             <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap ${
-                isActive ? 'nav-pill-active' : 'nav-pill-inactive'
-              }`}
+              onClick={() => { setActiveTab('dashboard'); setMobileDrawerOpen(false); }}
+              className={`p-2.5 rounded-lg border text-left flex items-center gap-2 ${activeTab === 'dashboard' ? 'bg-blue-600 text-white font-bold border-blue-500' : 'border-slate-800'}`}
             >
-              <IconComponent className="h-3.5 w-3.5" />
-              <span>{item.label}</span>
+              <LayoutDashboard className="h-4 w-4" />
+              <span>Command Center</span>
             </button>
-          );
-        })}
-      </div>
+
+            <button
+              onClick={() => { setActiveTab('forecast'); setMobileDrawerOpen(false); }}
+              className={`p-2.5 rounded-lg border text-left flex items-center gap-2 ${activeTab === 'forecast' ? 'bg-blue-600 text-white font-bold border-blue-500' : 'border-slate-800'}`}
+            >
+              <Calendar className="h-4 w-4" />
+              <span>Freight Forecast</span>
+            </button>
+
+            <button
+              onClick={() => { setActiveTab('optimizer'); setMobileDrawerOpen(false); }}
+              className={`p-2.5 rounded-lg border text-left flex items-center gap-2 ${activeTab === 'optimizer' ? 'bg-blue-600 text-white font-bold border-blue-500' : 'border-slate-800'}`}
+            >
+              <Ship className="h-4 w-4" />
+              <span>Charter Optimizer</span>
+            </button>
+
+            <button
+              onClick={() => { setActiveTab('ports'); setMobileDrawerOpen(false); }}
+              className={`p-2.5 rounded-lg border text-left flex items-center gap-2 ${activeTab === 'ports' ? 'bg-blue-600 text-white font-bold border-blue-500' : 'border-slate-800'}`}
+            >
+              <Compass className="h-4 w-4" />
+              <span>Port Intelligence</span>
+            </button>
+
+            <button
+              onClick={() => { setActiveTab('scenarios'); setMobileDrawerOpen(false); }}
+              className={`p-2.5 rounded-lg border text-left flex items-center gap-2 ${activeTab === 'scenarios' ? 'bg-blue-600 text-white font-bold border-blue-500' : 'border-slate-800'}`}
+            >
+              <Sliders className="h-4 w-4" />
+              <span>Scenario Simulator</span>
+            </button>
+
+            <button
+              onClick={() => { setActiveTab('health'); setMobileDrawerOpen(false); }}
+              className={`p-2.5 rounded-lg border text-left flex items-center gap-2 ${activeTab === 'health' ? 'bg-blue-600 text-white font-bold border-blue-500' : 'border-slate-800'}`}
+            >
+              <Activity className="h-4 w-4" />
+              <span>Data Matrix</span>
+            </button>
+
+            <button
+              onClick={() => { setActiveTab('audit'); setMobileDrawerOpen(false); }}
+              className={`p-2.5 rounded-lg border text-left flex items-center gap-2 ${activeTab === 'audit' ? 'bg-blue-600 text-white font-bold border-blue-500' : 'border-slate-800'}`}
+            >
+              <FileText className="h-4 w-4" />
+              <span>Audit Trail</span>
+            </button>
+
+            <button
+              onClick={() => { setActiveTab('home'); setMobileDrawerOpen(false); }}
+              className={`p-2.5 rounded-lg border text-left flex items-center gap-2 ${activeTab === 'home' ? 'bg-blue-600 text-white font-bold border-blue-500' : 'border-slate-800'}`}
+            >
+              <Home className="h-4 w-4" />
+              <span>Parallax Home</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Full-Width Main Viewport Content */}
       <main className="flex-1 min-w-0 z-10">

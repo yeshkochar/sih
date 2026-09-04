@@ -119,19 +119,28 @@ class ForecastIn(BaseModel):
     commodity: str
 
 class ForecastPoint(BaseModel):
-    date: str
+    date: Any
     predicted_rate: float
-    lower_ci: float
-    upper_ci: float
+    p10_rate: Optional[float] = None
+    p50_rate: Optional[float] = None
+    p90_rate: Optional[float] = None
+    lower_bound: Optional[float] = None
+    upper_bound: Optional[float] = None
+    lower_ci: Optional[float] = None
+    upper_ci: Optional[float] = None
+    horizon_days: Optional[int] = None
 
 class ForecastResponse(BaseModel):
-    origin: str
-    destination: str
-    vessel_type: str
-    commodity: str
+    origin: Optional[str] = None
+    destination: Optional[str] = None
+    vessel_type: Optional[str] = None
+    commodity: Optional[str] = None
     forecast: List[ForecastPoint]
-    model_name: str
-    mae: float
+    metrics: Dict[str, Any]
+    best_model: str
+    confidence_score: float
+    model_version: Optional[str] = "v2.1-walkforward-ensemble"
+    walk_forward_metrics: Optional[Dict[str, Any]] = None
 
 # 6. Recommendation Schemas
 class RecommendationOut(BaseModel):
@@ -151,9 +160,48 @@ class RecommendationOut(BaseModel):
     override_vessel_id: Optional[int]
     override_reason: Optional[str]
     override_by: Optional[str]
+    snapshot_json: Optional[str] = None
+    freshness_status: Optional[str] = "CURRENT"
 
     class Config:
         from_attributes = True
+
+class MonteCarloIn(BaseModel):
+    request_id: int
+    n_simulations: Optional[int] = 1000
+    freight_volatility_pct: Optional[float] = 10.0
+    fuel_volatility_pct: Optional[float] = 12.0
+    fx_volatility_pct: Optional[float] = 5.0
+    congestion_std_hours: Optional[float] = 12.0
+
+class ActualVoyageIn(BaseModel):
+    recommendation_id: Optional[int] = None
+    origin_port: str
+    destination_port: str
+    vessel_name: str
+    commodity: str
+    quantity_mt: float
+    predicted_freight_rate: float
+    predicted_total_cost: float
+    predicted_transit_days: float
+    predicted_idle_hours: float
+    actual_freight_rate: float
+    actual_total_cost: float
+    actual_transit_days: float
+    actual_idle_hours: float
+    actual_arrival_date: date
+    notes: Optional[str] = None
+
+class ActualVoyageOut(ActualVoyageIn):
+    id: int
+    rate_error_pct: float
+    cost_error_pct: float
+    time_error_days: float
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
 
 class OverrideIn(BaseModel):
     vessel_id: int

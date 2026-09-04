@@ -1,4 +1,5 @@
 import math
+import json
 from datetime import datetime, date, timedelta
 from sqlalchemy.orm import Session
 from backend.app.models.port import Port
@@ -35,24 +36,15 @@ def calculate_voyage_metrics(vessel: Vessel, origin_port: Port, dest_port: Port,
     """
     distance_nm = haversine_distance(origin_port.latitude, origin_port.longitude, dest_port.latitude, dest_port.longitude)
     
-    # Transit time (days)
     transit_days = distance_nm / (vessel.speed * 24.0)
-    
-    # Fuel consumption (Bunker fuel price: demo base is 600 USD/ton)
-    # Total fuel = transit_days * daily_sea_consumption + idle_days * daily_port_consumption (approx 3.0 tons/day in port)
     idle_days = idle_hours / 24.0
     fuel_price = 600.0  # Default base fuel cost
     total_fuel_tons = (transit_days * vessel.fuel_consumption) + (idle_days * 3.0)
     fuel_cost = total_fuel_tons * fuel_price
     
-    # Port idle cost (vessel operating cost is approx $15,000/day for Panamax/Supramax)
     daily_vessel_op_cost = 15000.0
     idle_cost = idle_days * daily_vessel_op_cost
-    
-    # Freight rate cost
     freight_cost = cargo_qty * current_rate
-    
-    # Total Cost
     total_cost = freight_cost + fuel_cost + idle_cost
     
     return {
@@ -65,10 +57,60 @@ def calculate_voyage_metrics(vessel: Vessel, origin_port: Port, dest_port: Port,
         "total_cost": round(total_cost, 2)
     }
 
+def compute_pareto_analysis(scored_vessels):
+    """
+    Evaluates multi-objective non-dominated Pareto frontiers across:
+    1. Total Voyage Cost (minimize)
+    2. Risk Score (minimize)
+    3. Total Transit + Idle Days (minimize)
+    Adds is_pareto_optimal, pareto_rank, and dominance_explanation attributes.
+    """
+    for i, item_a in enumerate(scored_vessels):
+        cost_a = item_a["metrics"]["total_cost"]
+        risk_a = item_a["risk_score"]
+        time_a = item_a["metrics"]["transit_days"] + item_a["metrics"]["idle_days"]
+        
+        dominated_by = []
+        dominates_list = []
+
+        for j, item_b in enumerate(scored_vessels):
+            if i == j:
+                continue
+            cost_b = item_b["metrics"]["total_cost"]
+            risk_b = item_b["risk_score"]
+            time_b = item_b["metrics"]["transit_days"] + item_b["metrics"]["idle_days"]
+
+            no_worse = (cost_a <= cost_b) and (risk_a <= risk_b) and (time_a <= time_b)
+            strictly_better = (cost_a < cost_b) or (risk_a < risk_b) or (time_a < time_b)
+
+            if no_worse and strictly_better:
+                dominates_list.append(item_b["vessel"].vessel_name)
+
+            b_no_worse = (cost_b <= cost_a) and (risk_b <= risk_a) and (time_b <= time_a)
+            b_strictly_better = (cost_b < cost_a) or (risk_b < risk_a) or (time_b < time_a)
+            if b_no_worse and b_strictly_better:
+                dominated_by.append(item_b["vessel"].vessel_name)
+
+        is_pareto = len(dominated_by) == 0
+        item_a["is_pareto_optimal"] = is_pareto
+        item_a["pareto_rank"] = 1 if is_pareto else (len(dominated_by) + 1)
+        item_a["dominates"] = dominates_list
+        item_a["dominated_by"] = dominated_by
+
+        if is_pareto:
+            if dominates_list:
+                item_a["dominance_explanation"] = f"Pareto Optimal (Rank 1): Dominates {', '.join(dominates_list[:2])} across lower cost and risk metrics."
+            else:
+                item_a["dominance_explanation"] = "Pareto Optimal (Rank 1): Non-dominated trade-off balance between cost, risk, and transit speed."
+        else:
+            item_a["dominance_explanation"] = f"Dominated by {', '.join(dominated_by[:2])} which offers lower voyage cost or lower route risk."
+
+    return scored_vessels
+
 def optimize_charter(db: Session, request_id: int, custom_weights: dict = None):
     """
     Evaluates all vessels against cargo request, sorts into feasible and infeasible,
-    calculates ranked recommendation scores, and constructs the explainability payload.
+    performs multi-objective Pareto analysis, and constructs the explainability payload.
     """
     weights = custom_weights if custom_weights else DEFAULT_WEIGHTS
     
@@ -82,15 +124,11 @@ def optimize_charter(db: Session, request_id: int, custom_weights: dict = None):
     if not origin_port or not dest_port:
         return None
         
-    # Get active disruptions for destination
     disruption_score = get_disruption_impact(db, dest_port.name, date.today())
     
-    # 1. Fetch Forecast Rates for Route
-    # We will use the forecast for the cargo's preferred vessel type or Panamax as fallback
     vessel_type_for_forecast = req.preferred_vessel_type if req.preferred_vessel_type else "Panamax"
     forecast_results = get_forecast(db, req.origin, req.destination, vessel_type_for_forecast, req.commodity)
     
-    # Get current rate and forecasted 30-day rate
     recent_rate_rec = db.query(FreightRate).filter(
         FreightRate.origin_port == req.origin,
         FreightRate.destination_port == req.destination,
@@ -99,22 +137,16 @@ def optimize_charter(db: Session, request_id: int, custom_weights: dict = None):
     
     current_rate = recent_rate_rec.freight_rate if recent_rate_rec else 30.0
     
-    # Forecast values
     forecast_list = forecast_results.get("forecast", [])
     predicted_30d_rate = current_rate
     forecast_confidence = forecast_results.get("confidence_score", 80.0)
     best_model = forecast_results.get("best_model", "Baseline")
     
     if len(forecast_list) >= 4:
-        # Week 4 is approx 30 days
         predicted_30d_rate = forecast_list[3]["predicted_rate"]
     elif len(forecast_list) > 0:
         predicted_30d_rate = forecast_list[-1]["predicted_rate"]
         
-    # 2. Evaluate Idle Hours based on port congestion
-    # Visakhapatnam base congestion is 35% -> ~12 hours idle
-    # Paradip congestion is 55% -> ~36 hours idle
-    # Let's map congestion directly to idle hours:
     idle_hours = max(2.0, (dest_port.congestion_score / 100.0) * 48.0)
     
     vessels = db.query(Vessel).all()
@@ -124,8 +156,6 @@ def optimize_charter(db: Session, request_id: int, custom_weights: dict = None):
     
     for v in vessels:
         feasibility = check_feasibility(v, dest_port, req.quantity)
-        
-        # Calculate voyage metrics
         metrics = calculate_voyage_metrics(v, origin_port, dest_port, req.quantity, current_rate, idle_hours)
         
         if not feasibility["feasible"]:
@@ -143,7 +173,6 @@ def optimize_charter(db: Session, request_id: int, custom_weights: dict = None):
                 "loa_buffer": round(dest_port.max_loa - v.loa, 2)
             })
             
-    # If no feasible vessels, exit early or return clean empty response
     if not feasible_vessels:
         return {
             "feasible_vessels": [],
@@ -157,38 +186,25 @@ def optimize_charter(db: Session, request_id: int, custom_weights: dict = None):
             }
         }
         
-    # 3. Score Feasible Vessels
     min_cost = min([fv["metrics"]["total_cost"] for fv in feasible_vessels])
     min_fuel_consumption = min([fv["vessel"].fuel_consumption for fv in feasible_vessels])
     
     scored_vessels = []
-    
-    # Calculate days left until cargo required_by_date
     days_to_deadline = (req.required_by_date - date.today()).days
     if days_to_deadline <= 0:
-        days_to_deadline = 15 # fallback
+        days_to_deadline = 15
         
     for fv in feasible_vessels:
         v = fv["vessel"]
         m = fv["metrics"]
         
-        # A. Cost Score (0-100) - lower cost is better
         cost_score = (min_cost / m["total_cost"]) * 100.0
-        
-        # B. Compatibility Score (0-100)
-        # Ratio of Cargo quantity to vessel cargo capacity (higher is better, meaning less wasted space)
         cargo_utilization = req.quantity / v.cargo_capacity
         utilization_score = 100.0 if cargo_utilization >= 0.90 else (cargo_utilization * 100.0)
-        
-        # Preferred Vessel type match bonus
         preferred_match = 100.0 if v.vessel_type == req.preferred_vessel_type else 60.0
-        
-        # Operational buffers
         draft_score = 100.0 if fv["draft_buffer"] >= 1.0 else (fv["draft_buffer"] / 1.0) * 100.0
         compat_score = 0.4 * utilization_score + 0.3 * preferred_match + 0.3 * draft_score
         
-        # C. Schedule Fit Score (0-100)
-        # Total travel time + idle waiting days + 2 days cargo loading/unloading
         total_time_needed = m["transit_days"] + m["idle_days"] + 2.0
         if total_time_needed <= days_to_deadline:
             schedule_score = 100.0
@@ -196,8 +212,6 @@ def optimize_charter(db: Session, request_id: int, custom_weights: dict = None):
             delay_days = total_time_needed - days_to_deadline
             schedule_score = max(10.0, 100.0 - (delay_days * 15.0))
             
-        # D. Risk Score Component (Optimization favors LOW risk)
-        # Risk factors: port congestion, active disruptions, vessel age/speed stability, schedule pressure
         delay_risk = 30.0 if schedule_score < 80.0 else 0.0
         port_risk = dest_port.congestion_score * 0.5
         disruption_risk = disruption_score * 4.0
@@ -206,13 +220,9 @@ def optimize_charter(db: Session, request_id: int, custom_weights: dict = None):
         vessel_risk = max(10.0, min(95.0, vessel_risk))
         risk_score_component = 100.0 - vessel_risk
         
-        # E. Fuel Efficiency Score (0-100)
         fuel_score = (min_fuel_consumption / v.fuel_consumption) * 100.0
-        
-        # F. Idle Time Score (0-100)
         idle_time_score = max(10.0, 100.0 - (m["idle_days"] * 10.0))
         
-        # Total Weighted Score
         total_score = (
             weights["cost"] * cost_score +
             weights["compatibility"] * compat_score +
@@ -225,10 +235,8 @@ def optimize_charter(db: Session, request_id: int, custom_weights: dict = None):
         scored_vessels.append({
             "vessel": v,
             "metrics": m,
-
             "draft_buffer": fv["draft_buffer"],
             "loa_buffer": fv["loa_buffer"],
-
             "scores": {
                 "total": round(total_score, 1),
                 "cost": round(cost_score, 1),
@@ -238,15 +246,14 @@ def optimize_charter(db: Session, request_id: int, custom_weights: dict = None):
                 "fuel_efficiency": round(fuel_score, 1),
                 "idle_time": round(idle_time_score, 1)
             },
-
             "risk_score": round(vessel_risk, 1)
         })
         
-    # Sort feasible vessels by score descending
     scored_vessels = sorted(scored_vessels, key=lambda x: x["scores"]["total"], reverse=True)
     
-    # 4. Determine Recommended Charter Window
-    # Analyze the rate change trend over the next 30 days
+    # Compute Pareto Analysis
+    scored_vessels = compute_pareto_analysis(scored_vessels)
+    
     rate_change_pct = ((predicted_30d_rate - current_rate) / current_rate) * 100.0
     
     expected_savings = 0.0
@@ -255,14 +262,12 @@ def optimize_charter(db: Session, request_id: int, custom_weights: dict = None):
     window_end = date.today() + timedelta(days=5)
     window_explanation = ""
     
-    # If freight forecast is dropping and confidence is decent, suggest waiting
     if rate_change_pct <= -3.0 and forecast_confidence >= 70.0:
         action = "WAIT 8-12 DAYS"
         window_start = date.today() + timedelta(days=8)
         window_end = date.today() + timedelta(days=12)
         expected_savings = (current_rate - predicted_30d_rate) * req.quantity
         window_explanation = f"Freight rates on this route are expected to drop by {-rate_change_pct:.1f}% over the next 30 days. Waiting to book could save up to ${expected_savings:,.2f} USD."
-    # If rates are spiking, lock now
     elif rate_change_pct >= 3.0:
         action = "BUY NOW / SECURE IMMEDIATE"
         window_explanation = f"Freight rates are on an upward trend (+{rate_change_pct:.1f}% expected in 30 days). Lock rates immediately to prevent budget overrun."
@@ -270,10 +275,8 @@ def optimize_charter(db: Session, request_id: int, custom_weights: dict = None):
         action = "BUY NOW (STABLE MARKET)"
         window_explanation = f"Market is highly stable (forecast change is {rate_change_pct:.1f}%). Book within standard window to ensure vessel availability."
         
-    # 5. Spot vs Multi-Voyage contract recommendation
     contract_type = "SPOT"
     contract_explanation = ""
-    # If demand is high, route has high volatility, and we have multiple voyages (handled conceptually here)
     if abs(rate_change_pct) > 8.0 and forecast_confidence > 75.0:
         contract_type = "MULTI-VOYAGE (COA)"
         contract_explanation = "High forecasted market volatility indicates securing a Multi-Voyage Contract (Contract of Affreightment) is optimal to hedge rate spikes."
@@ -281,7 +284,6 @@ def optimize_charter(db: Session, request_id: int, custom_weights: dict = None):
         contract_type = "SPOT CHARTER"
         contract_explanation = "Low volatility and downward or stable rate trends make Spot Chartering the most cost-effective and flexible option."
         
-    # 6. Construct Recommendation Explainability & AI Drivers
     top_vessel_data = scored_vessels[0]
     best_v = top_vessel_data["vessel"]
     
@@ -289,11 +291,51 @@ def optimize_charter(db: Session, request_id: int, custom_weights: dict = None):
         f"Freight forecast for the route indicates a rate of ${predicted_30d_rate:.2f}/MT, which is {abs(rate_change_pct):.1f}% {'below' if rate_change_pct < 0 else 'above'} current market.",
         f"Vessel {best_v.vessel_name} satisfies port draft limits with a buffer of {top_vessel_data['draft_buffer']}m.",
         f"Cargo utilization is at {req.quantity/best_v.cargo_capacity*100:.1f}%, minimizing ballast/space penalty.",
-        f"Expected port waiting/idle time is {top_vessel_data['metrics']['idle_days']*24.0:.1f} hours, which incurs an estimated idle cost of ${top_vessel_data['metrics']['idle_cost']:,.2f}.",
-        f"Route risk score is {top_vessel_data['risk_score']}/100, driven mainly by destination port congestion."
+        f"Expected port waiting/idle time is {top_vessel_data['metrics']['idle_days']*24.0:.1f} hours, incurring an estimated idle cost of ${top_vessel_data['metrics']['idle_cost']:,.2f}.",
+        f"Route risk score is {top_vessel_data['risk_score']}/100, driven mainly by destination port congestion.",
+        f"Pareto Dominance: {top_vessel_data.get('dominance_explanation', '')}"
     ]
+
+    snapshot_dict = {
+        "cargo_request": {
+            "id": req.id,
+            "commodity": req.commodity,
+            "quantity": req.quantity,
+            "origin": req.origin,
+            "destination": req.destination,
+            "required_by_date": str(req.required_by_date),
+            "max_budget": req.max_budget,
+            "priority": req.priority
+        },
+        "market_snapshot": {
+            "current_rate": current_rate,
+            "forecast_30d_rate": predicted_30d_rate,
+            "fuel_price": 600.0,
+            "port_congestion": dest_port.congestion_score,
+            "disruption_score": disruption_score,
+            "model_version": "v2.1-walkforward-ensemble"
+        },
+        "recommended_vessel": {
+            "id": best_v.id,
+            "vessel_name": best_v.vessel_name,
+            "vessel_type": best_v.vessel_type,
+            "total_cost": top_vessel_data["metrics"]["total_cost"],
+            "risk_score": top_vessel_data["risk_score"],
+            "total_score": top_vessel_data["scores"]["total"],
+            "is_pareto_optimal": top_vessel_data.get("is_pareto_optimal", True)
+        },
+        "pareto_summary": [
+            {
+                "vessel_name": v_item["vessel"].vessel_name,
+                "total_cost": v_item["metrics"]["total_cost"],
+                "risk_score": v_item["risk_score"],
+                "is_pareto_optimal": v_item["is_pareto_optimal"],
+                "dominance_explanation": v_item["dominance_explanation"]
+            } for v_item in scored_vessels
+        ],
+        "explanation_drivers": explanation_drivers
+    }
     
-    # Save recommendation to database for persistence
     db_rec = Recommendation(
         cargo_request_id=req.id,
         vessel_id=best_v.id,
@@ -304,7 +346,9 @@ def optimize_charter(db: Session, request_id: int, custom_weights: dict = None):
         risk_score=top_vessel_data["risk_score"],
         idle_cost=top_vessel_data["metrics"]["idle_cost"],
         feasibility_status="Feasible",
-        explanation=" || ".join(explanation_drivers)
+        explanation=" || ".join(explanation_drivers),
+        snapshot_json=json.dumps(snapshot_dict),
+        freshness_status="CURRENT"
     )
     db.add(db_rec)
     db.commit()
@@ -312,7 +356,16 @@ def optimize_charter(db: Session, request_id: int, custom_weights: dict = None):
     
     return {
         "recommendation_id": db_rec.id,
-        "cargo_request": req,
+        "cargo_request": {
+            "id": req.id,
+            "commodity": req.commodity,
+            "quantity": req.quantity,
+            "origin": req.origin,
+            "destination": req.destination,
+            "required_by_date": str(req.required_by_date),
+            "max_budget": req.max_budget,
+            "priority": req.priority
+        },
         "ranked_vessels": scored_vessels,
         "infeasible_vessels": infeasible_vessels,
         "recommended_vessel": top_vessel_data,
@@ -333,5 +386,6 @@ def optimize_charter(db: Session, request_id: int, custom_weights: dict = None):
             "confidence": forecast_confidence,
             "model": best_model
         },
-        "explainability_drivers": explanation_drivers
+        "explainability_drivers": explanation_drivers,
+        "freshness_status": "CURRENT"
     }

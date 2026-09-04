@@ -2,210 +2,239 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom Scrollbars */
+/* Custom Scrollbars - Steel & Ocean Industrial Theme */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 .theme-dark ::-webkit-scrollbar-track,
 ::-webkit-scrollbar-track {
-  background: #000000;
+  background: #070A0D;
 }
 .theme-light ::-webkit-scrollbar-track {
-  background: #F1F5F9;
+  background: #E5EBF0;
 }
 .theme-dark ::-webkit-scrollbar-thumb,
 ::-webkit-scrollbar-thumb {
-  background: #1E293B;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 3px;
+  background: #1B252C;
+  border: 1px solid #23303A;
+  border-radius: 2px;
 }
 .theme-light ::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
-  border: 1px solid rgba(100, 116, 139, 0.2);
-  border-radius: 3px;
+  background: #A8B2B7;
+  border: 1px solid #7A8991;
+  border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3B82F6;
+  background: #168C8A;
 }
 
-/* Pure Solid Base Environment */
+/* Base Steel & Ocean Environment */
+body {
+  background-color: #070A0D;
+  color: #EDF1F0;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
 .bg-black-sail {
-  background-color: #000000;
+  background-color: #070A0D;
   background-attachment: fixed;
 }
 .theme-light .bg-black-sail {
-  background-color: #F1F5F9;
+  background-color: #EBF0F3;
 }
 
-/* Translucent Dark & Light Glass Cards (Watermark Visible Behind) */
+/* Translucent Industrial Steel & Ocean Panels */
 .card-black-translucent {
-  background: rgba(9, 14, 23, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid #1E293B;
-  border-radius: 0.5rem;
+  background: rgba(16, 22, 27, 0.90);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid #23303A;
+  border-radius: 0.375rem;
   box-shadow: 
-    0 8px 32px 0 rgba(0, 0, 0, 0.8),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+    0 10px 30px -5px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 0 rgba(168, 178, 183, 0.08);
 }
 
 .theme-light .card-black-translucent {
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid #CBD5E1;
-  border-radius: 0.5rem;
-  box-shadow: 
-    0 4px 20px 0 rgba(148, 163, 184, 0.25),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
+  border-radius: 0.375rem;
+  box-shadow: 0 4px 16px 0 rgba(16, 37, 44, 0.08);
 }
 
 .card-slate-navy {
-  background: rgba(9, 14, 23, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid #1E293B;
-  border-radius: 0.5rem;
-  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.7);
+  background: rgba(16, 22, 27, 0.90);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid #23303A;
+  border-radius: 0.375rem;
+  box-shadow: 0 6px 20px 0 rgba(0, 0, 0, 0.7);
 }
 
 .theme-light .card-slate-navy {
-  background: rgba(255, 255, 255, 0.90);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid #CBD5E1;
-  border-radius: 0.5rem;
-  box-shadow: 0 4px 16px 0 rgba(148, 163, 184, 0.2);
+  border-radius: 0.375rem;
+  box-shadow: 0 4px 16px 0 rgba(16, 37, 44, 0.08);
 }
 
 .card-slate-navy-hover {
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.2s ease-in-out;
 }
 .card-slate-navy-hover:hover {
-  border-color: #3B82F6;
-  box-shadow: 
-    0 10px 28px 0 rgba(0, 0, 0, 0.85),
-    0 0 0 1px rgba(59, 130, 246, 0.35);
+  border-color: #168C8A;
+  box-shadow: 0 8px 24px 0 rgba(22, 140, 138, 0.15);
 }
 .theme-light .card-slate-navy-hover:hover {
-  border-color: #2563EB;
-  box-shadow: 
-    0 8px 24px 0 rgba(37, 99, 235, 0.15),
-    0 0 0 1px rgba(37, 99, 235, 0.3);
+  border-color: #168C8A;
+  box-shadow: 0 6px 20px 0 rgba(22, 140, 138, 0.15);
 }
 
 /* Inset Container */
 .inset-slate-container {
-  background-color: rgba(0, 0, 0, 0.7);
-  border: 1px solid #1E293B;
-  border-radius: 0.375rem;
-  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.8);
+  background-color: #0C1217;
+  border: 1px solid #1B252C;
+  border-radius: 0.25rem;
+  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.6);
 }
 .theme-light .inset-slate-container {
-  background-color: #F8FAFC;
-  border: 1px solid #E2E8F0;
-  border-radius: 0.375rem;
-  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.03);
+  background-color: #F1F5F8;
+  border: 1px solid #CBD5E1;
+  border-radius: 0.25rem;
+  box-shadow: inset 0 1px 3px 0 rgba(0, 0, 0, 0.05);
 }
 
-/* Active Navigation Pill */
-.nav-pill-active {
-  background: linear-gradient(90deg, #1E3A8A 0%, #1D4ED8 100%);
-  color: #FFFFFF !important;
-  font-weight: 700;
-  border-radius: 0.5rem;
-  box-shadow: 0 2px 10px rgba(29, 78, 216, 0.35);
-}
-
-.nav-pill-inactive {
-  color: #94A3B8;
-  font-weight: 500;
-  border-radius: 0.5rem;
+/* Architectural Navigation Link */
+.nav-link-architectural {
+  position: relative;
+  color: #A8B2B7;
+  font-weight: 600;
+  font-size: 0.75rem;
+  padding: 0.5rem 0.75rem;
   transition: all 0.15s ease;
+  border-bottom: 2px solid transparent;
+  border-radius: 0.25rem 0.25rem 0 0;
 }
-.theme-light .nav-pill-inactive {
+.theme-light .nav-link-architectural {
   color: #475569;
 }
-.nav-pill-inactive:hover {
-  background: rgba(30, 41, 59, 0.6);
-  color: #F8FAFC;
+.nav-link-architectural:hover {
+  color: #EDF1F0;
+  background-color: rgba(27, 37, 44, 0.6);
 }
-.theme-light .nav-pill-inactive:hover {
-  background: #E2E8F0;
+.theme-light .nav-link-architectural:hover {
   color: #0F172A;
+  background-color: rgba(226, 232, 240, 0.8);
 }
 
-/* Buttons */
+.nav-link-active-architectural {
+  position: relative;
+  color: #EDF1F0 !important;
+  font-weight: 800;
+  font-size: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 2px solid #168C8A;
+  background-color: rgba(22, 140, 138, 0.12);
+  border-radius: 0.25rem 0.25rem 0 0;
+}
+.theme-light .nav-link-active-architectural {
+  color: #0F172A !important;
+  border-bottom: 2px solid #168C8A;
+  background-color: rgba(22, 140, 138, 0.10);
+  border-radius: 0.25rem 0.25rem 0 0;
+}
+
+/* Buttons - Industrial Precision */
 .btn-navy-primary {
-  background: linear-gradient(180deg, #2563EB 0%, #1D4ED8 100%);
-  color: #FFFFFF !important;
-  font-weight: 600;
-  border-radius: 0.375rem;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 2px 8px rgba(29, 78, 216, 0.3);
+  background: linear-gradient(180deg, #168C8A 0%, #122B3A 100%);
+  color: #EDF1F0 !important;
+  font-weight: 700;
+  border-radius: 0.25rem;
+  border: 1px solid #168C8A;
+  box-shadow: 0 2px 6px rgba(18, 43, 58, 0.5);
   transition: all 0.15s ease;
 }
 .btn-navy-primary:hover {
-  background: linear-gradient(180deg, #3B82F6 0%, #2563EB 100%);
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+  background: linear-gradient(180deg, #1CA09E 0%, #168C8A 100%);
+  border-color: #3B7189;
+  box-shadow: 0 4px 12px rgba(22, 140, 138, 0.3);
 }
 .btn-navy-primary:active {
   transform: translateY(1px);
 }
 
-/* Badges */
+/* Industrial Badges */
 .badge-slate-blue {
-  background: rgba(59, 130, 246, 0.15);
-  border: 1px solid rgba(59, 130, 246, 0.35);
-  color: #60A5FA;
+  background: rgba(59, 113, 137, 0.15);
+  border: 1px solid rgba(59, 113, 137, 0.4);
+  color: #3B7189;
 }
 .theme-light .badge-slate-blue {
-  background: rgba(37, 99, 235, 0.1);
-  border: 1px solid rgba(37, 99, 235, 0.3);
-  color: #1D4ED8;
+  background: rgba(59, 113, 137, 0.1);
+  border: 1px solid rgba(59, 113, 137, 0.3);
+  color: #2D586B;
 }
+
 .badge-slate-amber {
-  background: rgba(245, 158, 11, 0.15);
-  border: 1px solid rgba(245, 158, 11, 0.35);
-  color: #F59E0B;
+  background: rgba(209, 154, 58, 0.15);
+  border: 1px solid rgba(209, 154, 58, 0.4);
+  color: #D19A3A;
 }
 .theme-light .badge-slate-amber {
-  background: rgba(217, 119, 6, 0.1);
-  border: 1px solid rgba(217, 119, 6, 0.3);
-  color: #B45309;
+  background: rgba(209, 154, 58, 0.1);
+  border: 1px solid rgba(209, 154, 58, 0.3);
+  color: #B5822B;
 }
+
 .badge-slate-emerald {
-  background: rgba(16, 185, 129, 0.15);
-  border: 1px solid rgba(16, 185, 129, 0.35);
-  color: #10B981;
+  background: rgba(75, 154, 114, 0.15);
+  border: 1px solid rgba(75, 154, 114, 0.4);
+  color: #4B9A72;
 }
 .theme-light .badge-slate-emerald {
-  background: rgba(5, 150, 105, 0.1);
-  border: 1px solid rgba(5, 150, 105, 0.3);
-  color: #047857;
+  background: rgba(75, 154, 114, 0.1);
+  border: 1px solid rgba(75, 154, 114, 0.3);
+  color: #387958;
 }
+
 .badge-slate-rose {
-  background: rgba(244, 63, 94, 0.15);
-  border: 1px solid rgba(244, 63, 94, 0.35);
-  color: #F43F5E;
+  background: rgba(201, 91, 85, 0.15);
+  border: 1px solid rgba(201, 91, 85, 0.4);
+  color: #C95B55;
 }
 .theme-light .badge-slate-rose {
-  background: rgba(225, 29, 72, 0.1);
-  border: 1px solid rgba(225, 29, 72, 0.3);
-  color: #BE123C;
+  background: rgba(201, 91, 85, 0.1);
+  border: 1px solid rgba(201, 91, 85, 0.3);
+  color: #A8423C;
+}
+
+.badge-slate-teal {
+  background: rgba(22, 140, 138, 0.15);
+  border: 1px solid rgba(22, 140, 138, 0.4);
+  color: #168C8A;
+}
+
+.badge-slate-copper {
+  background: rgba(185, 120, 62, 0.15);
+  border: 1px solid rgba(185, 120, 62, 0.4);
+  color: #B9783E;
 }
 
 /* Leaflet Map Tiles */
 .leaflet-container {
-  background: #000000 !important;
-  border-radius: 0.5rem;
+  background: #070A0D !important;
+  border-radius: 0.375rem;
 }
 .theme-light .leaflet-container {
-  background: #E2E8F0 !important;
+  background: #EBF0F3 !important;
 }
 .leaflet-tile {
-  filter: invert(100%) hue-rotate(195deg) brightness(85%) contrast(120%);
+  filter: invert(95%) hue-rotate(180deg) brightness(85%) contrast(125%);
 }
 .theme-light .leaflet-tile {
   filter: none !important;
@@ -213,7 +242,7 @@
 
 /* Global Light Theme Typography & Container Mapping */
 .theme-light body {
-  background-color: #F1F5F9;
+  background-color: #EBF0F3;
   color: #0F172A;
 }
 
@@ -239,7 +268,7 @@
 .theme-light .bg-slate-900\/90,
 .theme-light .bg-slate-900\/95,
 .theme-light .bg-slate-950\/60 {
-  background-color: #F8FAFC !important;
+  background-color: #FFFFFF !important;
 }
 
 .theme-light .border-slate-800,

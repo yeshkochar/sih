@@ -47,6 +47,7 @@ def init_db():
     from backend.app.models.disruption import Disruption
     from backend.app.models.audit_log import AuditLog
     from backend.app.models.rag_document import Document, DocumentChunk
+    from backend.app.models.actual_voyage import ActualVoyageData
     
     Base.metadata.create_all(bind=engine)
 
@@ -58,6 +59,17 @@ def init_db():
                 port_cols = [r[1] for r in res_p]
                 if "data_source" not in port_cols:
                     conn.execute(text("ALTER TABLE ports ADD COLUMN data_source VARCHAR DEFAULT 'Port Authority / NLP Marine'"))
+
+                res_r = conn.execute(text("PRAGMA table_info(recommendations)")).fetchall()
+                rec_cols = [r[1] for r in res_r]
+                if "snapshot_json" not in rec_cols:
+                    conn.execute(text("ALTER TABLE recommendations ADD COLUMN snapshot_json TEXT"))
+                if "freshness_status" not in rec_cols:
+                    conn.execute(text("ALTER TABLE recommendations ADD COLUMN freshness_status VARCHAR DEFAULT 'CURRENT'"))
+                conn.commit()
+            except Exception as e:
+                print("SQLite migration note:", e)
+
                 if "data_status" not in port_cols:
                     conn.execute(text("ALTER TABLE ports ADD COLUMN data_status VARCHAR DEFAULT 'LIVE'"))
 

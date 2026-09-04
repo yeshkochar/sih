@@ -23,3 +23,8 @@ class Recommendation(Base):
     override_vessel_id = Column(Integer, ForeignKey("vessels.id"), nullable=True)
     override_reason = Column(String, nullable=True)
     override_by = Column(String, nullable=True)
+
+    # Replay & Freshness metadata
+    snapshot_json = Column(String, nullable=True)
+    freshness_status = Column(String, default="CURRENT")
+
