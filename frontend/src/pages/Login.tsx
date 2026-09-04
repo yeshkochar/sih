@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Ship, Lock, User, AlertCircle } from 'lucide-react';
+import MaritimeBackground from '../components/MaritimeBackground';
 
 interface LoginProps {
   onLoginSuccess: (user: any, token: string) => void;
@@ -25,7 +26,6 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           body: JSON.stringify({ email, password }),
         });
       } catch (networkErr) {
-        // Fallback to direct backend URL if proxy connection fails
         response = await fetch('http://127.0.0.1:8000/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -33,7 +33,6 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         });
       }
 
-      // If proxy returned 500/502 without body, try direct backend URL
       if (!response.ok && (response.status === 500 || response.status === 502)) {
         try {
           const directRes = await fetch('http://127.0.0.1:8000/api/auth/login', {
@@ -72,63 +71,62 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 relative overflow-hidden">
-      {/* Decorative background grid and spheres */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(30,58,138,0.3),rgba(255,255,255,0))]" />
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-900/10 rounded-full blur-3xl" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-900/10 rounded-full blur-3xl" />
+    <div className="relative min-h-screen bg-navy-950 flex flex-col items-center justify-center p-6 overflow-hidden font-sans select-none">
+      
+      {/* Animated Ship & Maritime Background */}
+      <MaritimeBackground />
 
-      <div className="w-full max-w-md glass-panel p-8 rounded-2xl shadow-2xl relative z-10">
+      <div className="w-full max-w-md card-slate-navy p-8 relative z-10 animate-fade-in-up border border-slate-800 shadow-2xl">
         <div className="flex flex-col items-center mb-8">
-          <div className="h-16 w-16 bg-blue-600/20 rounded-2xl flex items-center justify-center mb-4 border border-blue-500/30">
-            <Ship className="h-8 w-8 text-blue-400" />
+          <div className="h-12 w-12 bg-navy-900 border border-slate-700 rounded-xl flex items-center justify-center mb-3 text-sky-400 font-black text-sm shadow-md">
+            SA
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-200 to-cyan-400">
-            FREIGHTSENSE AI
+          <h1 className="text-xl font-black tracking-tight text-slate-100 uppercase text-center">
+            SAIL FREIGHT AI
           </h1>
-          <p className="text-sm text-slate-400 mt-2 text-center max-w-xs">
-            AI-Powered Freight Intelligence & Vessel Chartering Support
+          <p className="text-xs text-slate-400 mt-1 text-center font-medium">
+            Steel Authority of India Limited • Maritime Bulk Procurement Portal
           </p>
         </div>
 
         {error && (
-          <div className="bg-red-950/40 border border-red-500/30 text-red-200 p-4 rounded-xl mb-6 flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
-            <p className="text-xs leading-relaxed">{error}</p>
+          <div className="bg-rose-950/40 border border-rose-800 text-rose-300 p-3.5 rounded-lg mb-6 flex items-start gap-3 text-xs">
+            <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+            <p className="leading-relaxed font-medium">{error}</p>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-              Email Address
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+              Official Enterprise Email
             </label>
             <div className="relative">
-              <User className="absolute left-3.5 top-3.5 h-5 w-5 text-slate-500" />
+              <User className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="email@sail.in"
-                className="w-full bg-slate-900/80 border border-slate-800 rounded-xl py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500/50 transition"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg py-2.5 pl-10 pr-4 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-400 transition font-mono"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-              Password
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+              Security Key / Password
             </label>
             <div className="relative">
-              <Lock className="absolute left-3.5 top-3.5 h-5 w-5 text-slate-500" />
+              <Lock className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-slate-900/80 border border-slate-800 rounded-xl py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500/50 transition"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg py-2.5 pl-10 pr-4 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-400 transition font-mono"
               />
             </div>
           </div>
@@ -136,18 +134,18 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium py-3.5 rounded-xl shadow-lg shadow-blue-900/20 active:scale-[0.98] transition disabled:opacity-50 disabled:pointer-events-none mt-2"
+            className="w-full btn-navy-primary text-xs font-semibold uppercase tracking-wider py-3 mt-2 shadow-lg active:scale-[0.98] transition disabled:opacity-50"
           >
-            {loading ? 'Authenticating...' : 'Sign In'}
+            {loading ? 'AUTHENTICATING COMMAND CREDENTIALS...' : 'SECURE ENTERPRISE LOGIN'}
           </button>
         </form>
 
-        <div className="mt-8 pt-6 border-t border-slate-900 text-center">
-          <p className="text-xs text-slate-500">
-            Smart India Hackathon 2026 • SAIL / Ministry of Steel
+        <div className="mt-6 pt-5 border-t border-slate-800 text-center">
+          <p className="text-[11px] text-slate-400 font-medium">
+            Ministry of Steel • Bulk Freight Command Platform
           </p>
-          <div className="mt-2 text-[10px] text-slate-400 bg-slate-900/40 p-2 rounded-lg border border-slate-900">
-            Demo Credentials: <span className="text-blue-400">demo@sail.in</span> / <span className="text-blue-400">demo123</span>
+          <div className="mt-2 text-[11px] text-sky-400 bg-slate-950 p-2.5 rounded-lg border border-slate-800 font-mono">
+            Demo Credentials: <span className="text-slate-100 font-bold">demo@sail.in</span> / <span className="text-slate-100 font-bold">demo123</span>
           </div>
         </div>
       </div>

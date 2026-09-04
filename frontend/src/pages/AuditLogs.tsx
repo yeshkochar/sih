@@ -23,7 +23,7 @@ export default function AuditLogs() {
       setLogs(data);
     } catch (e) {
       console.error(e);
-    } finally {
+    } flex: {
       setLoading(false);
     }
   };
@@ -33,67 +33,70 @@ export default function AuditLogs() {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-sans">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-900 pb-5">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-800 pb-5">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">System Audit Trail</h1>
-          <p className="text-sm text-slate-400 mt-1">
-            Review human-in-the-loop decisions, recommendation overrides, and scenario testing history.
+          <h1 className="text-xl font-black tracking-tight text-slate-100 uppercase flex items-center gap-3">
+            <FileText className="h-6 w-6 text-sky-400" />
+            System Audit Trail & Decision Governance Desk
+          </h1>
+          <p className="text-xs text-slate-400 font-medium mt-1">
+            Steel Authority of India Limited • Immutable Audit Trail for Human Overrides & Recommendations
           </p>
         </div>
         <button
           onClick={fetchAuditLogs}
           disabled={loading}
-          className="bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 font-semibold px-4 py-2.5 rounded-xl text-xs active:scale-95 transition flex items-center gap-2 self-start md:self-auto"
+          className="btn-navy-primary font-semibold text-xs px-4 py-2 flex items-center gap-2 self-start md:self-auto disabled:opacity-50"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-          Refresh Audit Trail
+          Refresh Audit Log
         </button>
       </div>
 
       {/* Logs Table */}
-      <div className="glass-panel p-5 rounded-2xl">
+      <div className="card-slate-navy p-5 font-mono">
         {logs.length === 0 ? (
-          <div className="text-center py-8 text-slate-500 text-xs flex flex-col items-center justify-center gap-2">
-            <AlertCircle className="h-6 w-6 text-slate-600 animate-pulse" />
-            <span>Audit log is currently empty. Run an optimization or perform an override to generate logs.</span>
+          <div className="text-center py-10 text-slate-400 text-xs flex flex-col items-center justify-center gap-2">
+            <AlertCircle className="h-8 w-8 text-sky-400 animate-pulse" />
+            <span className="font-bold text-slate-300">Audit trail log is empty. Execute optimization or human override to record events.</span>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-slate-800 text-slate-400 uppercase tracking-wider font-semibold">
-                  <th className="py-3 px-2">Timestamp (UTC)</th>
-                  <th className="py-3 px-2">Operator</th>
-                  <th className="py-3 px-2">Role</th>
-                  <th className="py-3 px-2">Action</th>
-                  <th className="py-3 px-2">Target ID</th>
-                  <th className="py-3 px-2">Log Description Details</th>
+                <tr className="border-b border-slate-800 text-slate-400 uppercase tracking-wider font-bold text-[10px] bg-slate-950/60">
+                  <th className="py-2.5 px-3">Timestamp (UTC)</th>
+                  <th className="py-2.5 px-3">Operator</th>
+                  <th className="py-2.5 px-3">Role</th>
+                  <th className="py-2.5 px-3">Action Type</th>
+                  <th className="py-2.5 px-3">Target ID</th>
+                  <th className="py-2.5 px-3">Audit Details</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-900">
+              <tbody className="divide-y divide-slate-800/60 font-sans">
                 {logs.map((log) => (
-                  <tr key={log.id} className="hover:bg-slate-900/30 transition text-slate-300">
-                    <td className="py-3.5 px-2 font-mono text-slate-400">
+                  <tr key={log.id} className="hover:bg-slate-800/40 transition text-slate-300">
+                    <td className="py-3 px-3 font-mono text-sky-400 font-medium text-[11px]">
                       {new Date(log.timestamp).toLocaleString()}
                     </td>
-                    <td className="py-3.5 px-2 font-medium text-slate-200">{log.username}</td>
-                    <td className="py-3.5 px-2 text-slate-400">{log.role}</td>
-                    <td className="py-3.5 px-2">
+                    <td className="py-3 px-3 font-bold text-slate-100">{log.username}</td>
+                    <td className="py-3 px-3 text-slate-400 font-mono text-[11px] uppercase">{log.role}</td>
+                    <td className="py-3 px-3 font-mono">
                       <span className={`px-2 py-0.5 rounded font-bold text-[9px] uppercase tracking-wider ${
-                        log.action === 'Override' ? 'bg-amber-950/60 text-amber-400 border border-amber-900/40' :
-                        log.action === 'Optimize' ? 'bg-blue-950/60 text-blue-400 border border-blue-900/40' :
-                        log.action === 'Reset' ? 'bg-red-950/60 text-red-400 border border-red-900/40' :
-                        'bg-slate-900 text-slate-400'
+                        log.action === 'Override' ? 'badge-slate-amber' :
+                        log.action === 'Optimize' ? 'badge-slate-blue' :
+                        log.action === 'Reset' ? 'badge-slate-rose' :
+                        'bg-slate-950 text-slate-400 border border-slate-800'
                       }`}>
                         {log.action}
                       </span>
                     </td>
-                    <td className="py-3.5 px-2 font-mono text-[10px] text-slate-500">
+                    <td className="py-3 px-3 font-mono text-[11px] text-sky-400 font-bold">
                       {log.target ? `#${log.target}` : '--'}
                     </td>
-                    <td className="py-3.5 px-2 text-slate-300 font-sans max-w-md">{log.details}</td>
+                    <td className="py-3 px-3 text-slate-200 font-medium max-w-md leading-relaxed">{log.details}</td>
                   </tr>
                 ))}
               </tbody>
