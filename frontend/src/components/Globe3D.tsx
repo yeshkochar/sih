@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { Layers, Flame, Activity, ShieldAlert, RotateCcw, ZoomIn, ZoomOut, Compass, Play, Pause, Anchor } from 'lucide-react';
 
 export interface GlobalLocationNode {
   id: string;
@@ -14,6 +15,8 @@ export interface GlobalLocationNode {
   majorExports: string;
   sailRelevance: string;
 }
+
+export type HeatmapMode = 'CONGESTION' | 'TRAFFIC' | 'RISK' | 'NORMAL';
 
 // 15 Major Global Maritime Trading Countries & Key Bulk Ports
 const GLOBAL_NODES: GlobalLocationNode[] = [
@@ -57,7 +60,38 @@ export default function Globe3D({ onSelectNode }: Globe3DProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const [selectedNode, setSelectedNode] = useState<GlobalLocationNode>(GLOBAL_NODES[0]);
   const [hoveredNode, setHoveredNode] = useState<GlobalLocationNode | null>(null);
+  const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null);
+  
+  const [heatmapMode, setHeatmapMode] = useState<HeatmapMode>('CONGESTION');
   const [isRotating, setIsRotating] = useState(true);
+
+  // References for camera controls
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const targetRotationYRef = useRef(0);
+  const targetRotationXRef = useRef(0);
+  const targetZoomRef = useRef(7.2);
+  const textureRef = useRef<THREE.CanvasTexture | null>(null);
+
+  // Function to center camera on a node
+  const focusNodeOnGlobe = (node: GlobalLocationNode) => {
+    const targetY = -((node.lon + 180) * (Math.PI / 180)) + Math.PI / 2;
+    const targetX = (node.lat) * (Math.PI / 180);
+    targetRotationYRef.current = targetY;
+    targetRotationXRef.current = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, targetX));
+    targetZoomRef.current = 5.2;
+  };
+
+  const handleNodeClick = (node: GlobalLocationNode) => {
+    setSelectedNode(node);
+    focusNodeOnGlobe(node);
+    if (onSelectNode) onSelectNode(node);
+  };
+
+  const handleResetCamera = () => {
+    targetRotationYRef.current = 0;
+    targetRotationXRef.current = 0;
+    targetZoomRef.current = 7.2;
+  };
 
   useEffect(() => {
     const container = mountRef.current;
@@ -66,34 +100,38 @@ export default function Globe3D({ onSelectNode }: Globe3DProps) {
     const width = container.clientWidth || 800;
     const height = container.clientHeight || 450;
 
-    // 1. Scene, Camera, Renderer (Steel & Ocean theme)
+    // 1. Scene & Camera Setup
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x070A0D);
 
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
     camera.position.set(0, 0, 7.2);
+    cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
 
-    // 2. Globe Sphere & Equirectangular Landmass Canvas Texture Generator
+    // 2. Texture Generator (Equirectangular Canvas Texture for Globe + Heatmap)
     const globeRadius = 2.4;
     const globeGeo = new THREE.SphereGeometry(globeRadius, 64, 64);
-    
+
     const canvas = document.createElement('canvas');
     canvas.width = 2048;
     canvas.height = 1024;
     const ctx = canvas.getContext('2d');
-    
-    if (ctx) {
-      // Ocean Base - Dark Ocean Void
+
+    const renderCanvasTexture = (mode: HeatmapMode) => {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, 2048, 1024);
+
+      // Ocean Base - Dark Void
       ctx.fillStyle = '#0B131A';
       ctx.fillRect(0, 0, 2048, 1024);
 
-      // Fine Lat/Lon Coordinate Grid - Metallic Silver
-      ctx.strokeStyle = 'rgba(44, 62, 76, 0.4)';
+      // Coordinates Grid Lines
+      ctx.strokeStyle = 'rgba(44, 62, 76, 0.35)';
       ctx.lineWidth = 1;
       for (let x = 0; x <= 2048; x += 64) {
         ctx.beginPath();
@@ -108,7 +146,7 @@ export default function Globe3D({ onSelectNode }: Globe3DProps) {
         ctx.stroke();
       }
 
-      // Draw Detailed Global Continents (Steel #1B252C with #2C3E4C border)
+      // Draw Global Continents (Steel #1B252C with #2C3E4C border)
       ctx.fillStyle = '#1B252C';
       ctx.strokeStyle = '#2C3E4C';
       ctx.lineWidth = 1.5;
@@ -146,33 +184,83 @@ export default function Globe3D({ onSelectNode }: Globe3DProps) {
 
       // South America
       drawLandmass([[-80, 10], [-35, -5], [-40, -22], [-70, -50], [-75, -45], [-80, -10]]);
-    }
 
+      // DYNAMIC HEATMAP OVERLAY LAYER
+      if (mode !== 'NORMAL') {
+        GLOBAL_NODES.forEach(node => {
+          const cx = ((node.lon + 180) / 360) * 2048;
+          const cy = ((90 - node.lat) / 180) * 1024;
+          
+          let intensity = node.congestion / 100.0;
+          let radius = 60 + intensity * 70;
+
+          const drawHeatCircle = (x: number, y: number) => {
+            const grad = ctx.createRadialGradient(x, y, 0, x, y, radius);
+
+            if (mode === 'CONGESTION') {
+              if (node.congestion >= 60) {
+                grad.addColorStop(0, 'rgba(201, 91, 85, 0.85)');
+                grad.addColorStop(0.5, 'rgba(209, 154, 58, 0.45)');
+                grad.addColorStop(1, 'rgba(201, 91, 85, 0)');
+              } else if (node.congestion >= 35) {
+                grad.addColorStop(0, 'rgba(209, 154, 58, 0.8)');
+                grad.addColorStop(0.5, 'rgba(59, 113, 137, 0.35)');
+                grad.addColorStop(1, 'rgba(209, 154, 58, 0)');
+              } else {
+                grad.addColorStop(0, 'rgba(75, 154, 114, 0.75)');
+                grad.addColorStop(1, 'rgba(75, 154, 114, 0)');
+              }
+            } else if (mode === 'TRAFFIC') {
+              grad.addColorStop(0, 'rgba(22, 140, 138, 0.9)');
+              grad.addColorStop(0.5, 'rgba(185, 120, 62, 0.5)');
+              grad.addColorStop(1, 'rgba(22, 140, 138, 0)');
+            } else if (mode === 'RISK') {
+              grad.addColorStop(0, 'rgba(185, 120, 62, 0.95)');
+              grad.addColorStop(0.4, 'rgba(201, 91, 85, 0.6)');
+              grad.addColorStop(1, 'rgba(185, 120, 62, 0)');
+            }
+
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+          };
+
+          drawHeatCircle(cx, cy);
+          if (cx - radius < 0) drawHeatCircle(cx + 2048, cy);
+          if (cx + radius > 2048) drawHeatCircle(cx - 2048, cy);
+        });
+      }
+    };
+
+    renderCanvasTexture(heatmapMode);
     const texture = new THREE.CanvasTexture(canvas);
+    textureRef.current = texture;
+
     const globeMat = new THREE.MeshPhongMaterial({
       map: texture,
-      shininess: 8,
+      shininess: 12,
       specular: new THREE.Color(0x168C8A)
     });
     const globeMesh = new THREE.Mesh(globeGeo, globeMat);
     scene.add(globeMesh);
 
-    // 3. Atmosphere Layer (Ocean Teal Glow)
+    // 3. Atmosphere Layer (Ocean Teal Ambient Glow)
     const atmosGeo = new THREE.SphereGeometry(globeRadius * 1.08, 64, 64);
     const atmosMat = new THREE.MeshBasicMaterial({
       color: new THREE.Color(0x122B3A),
       transparent: true,
-      opacity: 0.15,
+      opacity: 0.18,
       side: THREE.BackSide
     });
     const atmosMesh = new THREE.Mesh(atmosGeo, atmosMat);
     scene.add(atmosMesh);
 
     // 4. Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
     scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0x168C8A, 1.2);
+    const dirLight = new THREE.DirectionalLight(0x168C8A, 1.3);
     dirLight.position.set(5, 3, 5);
     scene.add(dirLight);
 
@@ -186,25 +274,24 @@ export default function Globe3D({ onSelectNode }: Globe3DProps) {
       return new THREE.Vector3(x, y, z);
     };
 
-    // 5. Render Port Nodes
+    // 5. Render Port Nodes & Pulse Rings
     const nodeGroup = new THREE.Group();
-    const nodeMeshMap = new Map<string, { mesh: THREE.Mesh; node: GlobalLocationNode }>();
+    const nodeMeshMap = new Map<string, { mesh: THREE.Mesh; ringMesh: THREE.Mesh; node: GlobalLocationNode }>();
 
     GLOBAL_NODES.forEach((node) => {
       const pos = latLonToVector3(node.lat, node.lon, globeRadius + 0.02);
       
-      // Node color coding: Emerald for Destination, Copper for Origin, Muted Blue for Hub
-      let nodeColor = 0x3B7189;
-      if (node.type === 'DESTINATION') nodeColor = 0x4B9A72;
-      else if (node.type === 'ORIGIN') nodeColor = 0xB9783E;
+      let nodeColor = 0x3B7189; // Muted Blue Hub
+      if (node.type === 'DESTINATION') nodeColor = 0x4B9A72; // Emerald Discharge
+      else if (node.type === 'ORIGIN') nodeColor = 0xB9783E; // Industrial Copper
 
-      const markerGeo = new THREE.SphereGeometry(0.045, 16, 16);
+      const markerGeo = new THREE.SphereGeometry(0.048, 16, 16);
       const markerMat = new THREE.MeshBasicMaterial({ color: nodeColor });
       const markerMesh = new THREE.Mesh(markerGeo, markerMat);
       markerMesh.position.copy(pos);
 
-      // Pulse ring for ports
-      const ringGeo = new THREE.RingGeometry(0.06, 0.08, 32);
+      // Pulse Ring
+      const ringGeo = new THREE.RingGeometry(0.065, 0.085, 32);
       const ringMat = new THREE.MeshBasicMaterial({
         color: nodeColor,
         side: THREE.DoubleSide,
@@ -220,20 +307,21 @@ export default function Globe3D({ onSelectNode }: Globe3DProps) {
       portGroup.add(ringMesh);
 
       nodeGroup.add(portGroup);
-      nodeMeshMap.set(node.id, { mesh: markerMesh, node });
+      nodeMeshMap.set(node.id, { mesh: markerMesh, ringMesh, node });
     });
     scene.add(nodeGroup);
 
-    // 6. Render Maritime Shipping Route Arcs (Ocean Teal)
+    // 6. Render Maritime Shipping Route Arcs & Animated Particles
     const arcGroup = new THREE.Group();
+    const particleList: { mesh: THREE.Mesh; curve: THREE.QuadraticBezierCurve3; speed: number; progress: number }[] = [];
+
     ROUTE_ARCS.forEach((arc) => {
       const vStart = latLonToVector3(arc.originLat, arc.originLon, globeRadius + 0.02);
       const vEnd = latLonToVector3(arc.destLat, arc.destLon, globeRadius + 0.02);
 
-      // Interpolate curved 3D 3-point arc
       const midPoint = vStart.clone().add(vEnd).multiplyScalar(0.5);
       const distance = vStart.distanceTo(vEnd);
-      midPoint.setLength(globeRadius + 0.02 + distance * 0.25);
+      midPoint.setLength(globeRadius + 0.02 + distance * 0.26);
 
       const curve = new THREE.QuadraticBezierCurve3(vStart, midPoint, vEnd);
       const points = curve.getPoints(50);
@@ -241,25 +329,50 @@ export default function Globe3D({ onSelectNode }: Globe3DProps) {
 
       const curveMat = new THREE.LineDashedMaterial({
         color: 0x168C8A,
-        dashSize: 0.15,
+        dashSize: 0.14,
         gapSize: 0.08,
         linewidth: 2,
         transparent: true,
-        opacity: 0.9
+        opacity: 0.85
       });
 
       const line = new THREE.Line(curveGeo, curveMat);
       line.computeLineDistances();
       arcGroup.add(line);
+
+      // Animated Cargo Vessel Particles
+      for (let p = 0; p < 2; p++) {
+        const pGeo = new THREE.SphereGeometry(0.028, 12, 12);
+        const pMat = new THREE.MeshBasicMaterial({ color: 0xEDF1F0 });
+        const pMesh = new THREE.Mesh(pGeo, pMat);
+        arcGroup.add(pMesh);
+        particleList.push({
+          mesh: pMesh,
+          curve,
+          speed: 0.0018 + Math.random() * 0.0006,
+          progress: p * 0.5
+        });
+      }
     });
     scene.add(arcGroup);
 
-    // 7. Raycaster for Interaction
+    // 7. Interactive Mouse Controls & Raycasting
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
-    const handlePointerDown = (event: MouseEvent) => {
-      const rect = renderer.domElement.getBoundingClientRect();
+    let isDragging = false;
+    let prevMousePos = { x: 0, y: 0 };
+    let curRotX = targetRotationXRef.current;
+    let curRotY = targetRotationYRef.current;
+    let curZoom = targetZoomRef.current;
+
+    const domElem = renderer.domElement;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      isDragging = true;
+      prevMousePos = { x: event.clientX, y: event.clientY };
+
+      const rect = domElem.getBoundingClientRect();
       mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
@@ -271,26 +384,99 @@ export default function Globe3D({ onSelectNode }: Globe3DProps) {
         const hitMesh = intersects[0].object as THREE.Mesh;
         for (const entry of nodeMeshMap.values()) {
           if (entry.mesh === hitMesh) {
-            setSelectedNode(entry.node);
-            if (onSelectNode) onSelectNode(entry.node);
+            handleNodeClick(entry.node);
             break;
           }
         }
       }
     };
 
-    const domElem = renderer.domElement;
+    const handlePointerMove = (event: PointerEvent) => {
+      const rect = domElem.getBoundingClientRect();
+      const mx = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      const my = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+      // Mouse drag rotation
+      if (isDragging) {
+        const deltaX = event.clientX - prevMousePos.x;
+        const deltaY = event.clientY - prevMousePos.y;
+        targetRotationYRef.current += deltaX * 0.005;
+        targetRotationXRef.current += deltaY * 0.005;
+        targetRotationXRef.current = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, targetRotationXRef.current));
+        prevMousePos = { x: event.clientX, y: event.clientY };
+      }
+
+      // Hover Raycasting
+      mouse.x = mx;
+      mouse.y = my;
+      raycaster.setFromCamera(mouse, camera);
+      const meshes = Array.from(nodeMeshMap.values()).map(v => v.mesh);
+      const intersects = raycaster.intersectObjects(meshes);
+
+      if (intersects.length > 0) {
+        const hitMesh = intersects[0].object as THREE.Mesh;
+        for (const entry of nodeMeshMap.values()) {
+          if (entry.mesh === hitMesh) {
+            setHoveredNode(entry.node);
+            setHoverPos({ x: event.clientX - rect.left, y: event.clientY - rect.top });
+            domElem.style.cursor = 'pointer';
+            break;
+          }
+        }
+      } else {
+        setHoveredNode(null);
+        domElem.style.cursor = isDragging ? 'grabbing' : 'grab';
+      }
+    };
+
+    const handlePointerUp = () => {
+      isDragging = false;
+    };
+
+    const handleWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      targetZoomRef.current += event.deltaY * 0.004;
+      targetZoomRef.current = Math.max(3.8, Math.min(11.0, targetZoomRef.current));
+    };
+
     domElem.addEventListener('pointerdown', handlePointerDown);
+    domElem.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    domElem.addEventListener('wheel', handleWheel, { passive: false });
 
     // 8. Animation Loop
     let animationFrameId: number;
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
 
-      if (isRotating) {
-        globeMesh.rotation.y += 0.0012;
-        nodeGroup.rotation.y += 0.0012;
-        arcGroup.rotation.y += 0.0012;
+      // Auto rotation if enabled
+      if (isRotating && !isDragging) {
+        targetRotationYRef.current += 0.0012;
+      }
+
+      // Smooth camera spherical movement (Lerp)
+      curRotY += (targetRotationYRef.current - curRotY) * 0.08;
+      curRotX += (targetRotationXRef.current - curRotX) * 0.08;
+      curZoom += (targetZoomRef.current - curZoom) * 0.08;
+
+      camera.position.x = curZoom * Math.sin(curRotY) * Math.cos(curRotX);
+      camera.position.y = curZoom * Math.sin(curRotX);
+      camera.position.z = curZoom * Math.cos(curRotY) * Math.cos(curRotX);
+      camera.lookAt(0, 0, 0);
+
+      // Animate Cargo Particles
+      particleList.forEach(pt => {
+        pt.progress += pt.speed;
+        if (pt.progress > 1) pt.progress = 0;
+        const pos = pt.curve.getPoint(pt.progress);
+        pt.mesh.position.copy(pos);
+      });
+
+      // Animate Selected Node Pulse Ring
+      const activeEntry = nodeMeshMap.get(selectedNode.id);
+      if (activeEntry) {
+        const scale = 1 + Math.sin(Date.now() * 0.005) * 0.25;
+        activeEntry.ringMesh.scale.set(scale, scale, scale);
       }
 
       renderer.render(scene, camera);
@@ -311,52 +497,179 @@ export default function Globe3D({ onSelectNode }: Globe3DProps) {
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener('resize', handleResize);
       domElem.removeEventListener('pointerdown', handlePointerDown);
+      domElem.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      domElem.removeEventListener('wheel', handleWheel);
       if (container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }
     };
-  }, [isRotating, onSelectNode]);
+  }, [heatmapMode, isRotating, selectedNode.id]);
 
   return (
-    <div className="relative w-full h-full min-h-[460px] card-slate-navy overflow-hidden border border-[#23303A]">
+    <div className="relative w-full h-full min-h-[480px] card-slate-navy overflow-hidden border border-[#23303A] font-sans">
       {/* 3D Canvas Container */}
-      <div ref={mountRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
+      <div ref={mountRef} className="w-full h-full" />
 
-      {/* Top Left Overlay Controls */}
-      <div className="absolute top-4 left-4 z-10 font-mono space-y-2 select-none">
-        <div className="bg-[#070A0D]/90 border border-[#23303A] p-3 rounded-md backdrop-blur-md">
-          <span className="text-[10px] text-[#A8B2B7] uppercase font-bold tracking-wider block">SAIL GLOBAL MARITIME NETWORK</span>
-          <span className="text-xs font-black text-[#EDF1F0] block mt-0.5">{selectedNode.name} ({selectedNode.country})</span>
-          <span className="text-[10px] text-[#168C8A] font-bold block mt-0.5">TYPE: {selectedNode.type} • CONGESTION: {selectedNode.congestion}%</span>
+      {/* TOP OVERLAY: HEATMAP & INTERACTIVE CONTROLS TOOLBAR */}
+      <div className="absolute top-4 left-4 z-20 font-mono space-y-2 select-none">
+        {/* Heatmap Layer Mode Selector */}
+        <div className="bg-[#070A0D]/95 border border-[#23303A] p-2.5 rounded-lg backdrop-blur-md space-y-1.5 shadow-xl">
+          <span className="text-[10px] text-[#A8B2B7] uppercase font-bold tracking-wider flex items-center gap-1.5">
+            <Flame className="h-3.5 w-3.5 text-[#168C8A]" />
+            Globe Surface Heatmap Layer
+          </span>
+
+          <div className="flex flex-wrap items-center gap-1 text-[10px] font-bold">
+            <button
+              onClick={() => setHeatmapMode('CONGESTION')}
+              className={`px-2.5 py-1 rounded transition flex items-center gap-1 ${
+                heatmapMode === 'CONGESTION'
+                  ? 'bg-[#168C8A] text-[#EDF1F0] font-black shadow'
+                  : 'bg-[#10161B] text-[#A8B2B7] hover:text-[#EDF1F0] border border-[#23303A]'
+              }`}
+            >
+              <Activity className="h-3 w-3" />
+              Congestion
+            </button>
+
+            <button
+              onClick={() => setHeatmapMode('TRAFFIC')}
+              className={`px-2.5 py-1 rounded transition flex items-center gap-1 ${
+                heatmapMode === 'TRAFFIC'
+                  ? 'bg-[#168C8A] text-[#EDF1F0] font-black shadow'
+                  : 'bg-[#10161B] text-[#A8B2B7] hover:text-[#EDF1F0] border border-[#23303A]'
+              }`}
+            >
+              <Anchor className="h-3 w-3" />
+              Traffic Volume
+            </button>
+
+            <button
+              onClick={() => setHeatmapMode('RISK')}
+              className={`px-2.5 py-1 rounded transition flex items-center gap-1 ${
+                heatmapMode === 'RISK'
+                  ? 'bg-[#B9783E] text-[#EDF1F0] font-black shadow'
+                  : 'bg-[#10161B] text-[#A8B2B7] hover:text-[#EDF1F0] border border-[#23303A]'
+              }`}
+            >
+              <ShieldAlert className="h-3 w-3" />
+              Disruption Risk
+            </button>
+
+            <button
+              onClick={() => setHeatmapMode('NORMAL')}
+              className={`px-2 py-1 rounded transition ${
+                heatmapMode === 'NORMAL'
+                  ? 'bg-[#1B252C] text-[#EDF1F0] font-black'
+                  : 'bg-[#10161B] text-[#A8B2B7] hover:text-[#EDF1F0] border border-[#23303A]'
+              }`}
+            >
+              Off
+            </button>
+          </div>
         </div>
 
-        <button
-          onClick={() => setIsRotating(!isRotating)}
-          className="bg-[#10161B]/90 hover:bg-[#1B252C] border border-[#23303A] text-[#A8B2B7] hover:text-[#EDF1F0] text-[10px] font-bold px-3 py-1.5 rounded-md backdrop-blur-md transition"
-        >
-          {isRotating ? 'Pause Rotation' : 'Resume Rotation'}
-        </button>
+        {/* Selected Port Node Badge & Camera Controls */}
+        <div className="flex items-center gap-2">
+          <div className="bg-[#070A0D]/90 border border-[#23303A] px-3 py-1.5 rounded-lg backdrop-blur-md text-[11px] text-[#EDF1F0] font-bold flex items-center gap-2">
+            <Compass className="h-3.5 w-3.5 text-[#168C8A] animate-pulse" />
+            <span>{selectedNode.name}</span>
+            <span className="text-[10px] text-[#A8B2B7]">({selectedNode.country})</span>
+          </div>
+
+          <button
+            onClick={() => setIsRotating(!isRotating)}
+            className="bg-[#10161B]/90 hover:bg-[#1B252C] border border-[#23303A] text-[#A8B2B7] hover:text-[#EDF1F0] text-[10px] font-bold px-2.5 py-1.5 rounded-lg backdrop-blur-md transition flex items-center gap-1"
+            title="Toggle Auto-Rotation"
+          >
+            {isRotating ? <Pause className="h-3.5 w-3.5 text-[#3B7189]" /> : <Play className="h-3.5 w-3.5 text-[#4B9A72]" />}
+            {isRotating ? 'Pause' : 'Rotate'}
+          </button>
+
+          <button
+            onClick={handleResetCamera}
+            className="bg-[#10161B]/90 hover:bg-[#1B252C] border border-[#23303A] text-[#A8B2B7] hover:text-[#EDF1F0] text-[10px] font-bold px-2.5 py-1.5 rounded-lg backdrop-blur-md transition flex items-center gap-1"
+            title="Reset Globe Camera View"
+          >
+            <RotateCcw className="h-3.5 w-3.5 text-[#A8B2B7]" />
+            Reset
+          </button>
+        </div>
       </div>
 
-      {/* Top Right Legend */}
-      <div className="absolute top-4 right-4 z-10 bg-[#070A0D]/90 border border-[#23303A] p-3 rounded-md backdrop-blur-md font-mono text-[10px] space-y-1.5 select-none">
+      {/* TOP RIGHT LEGEND */}
+      <div className="absolute top-4 right-4 z-20 bg-[#070A0D]/95 border border-[#23303A] p-3 rounded-lg backdrop-blur-md font-mono text-[10px] space-y-1.5 select-none shadow-xl">
         <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-[#4B9A72] block" />
-          <span className="text-[#EDF1F0]">Discharge Terminal (India)</span>
+          <span className="w-2.5 h-2.5 rounded-full bg-[#4B9A72] block ring-2 ring-[#4B9A72]/30" />
+          <span className="text-[#EDF1F0]">Discharge Terminal (SAIL India)</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-[#B9783E] block" />
-          <span className="text-[#EDF1F0]">Loading Origin (Global)</span>
+          <span className="w-2.5 h-2.5 rounded-full bg-[#B9783E] block ring-2 ring-[#B9783E]/30" />
+          <span className="text-[#EDF1F0]">Loading Origin (Global Cargo)</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-[#3B7189] block" />
-          <span className="text-[#EDF1F0]">Maritime Hub / Bunkering</span>
+          <span className="w-2.5 h-2.5 rounded-full bg-[#3B7189] block ring-2 ring-[#3B7189]/30" />
+          <span className="text-[#EDF1F0]">Maritime Bunkering Hub</span>
         </div>
         <div className="flex items-center gap-2 pt-1 border-t border-[#23303A]">
           <span className="w-4 h-0.5 bg-[#168C8A] block" />
           <span className="text-[#168C8A] font-bold">Active Fleet Shipping Route</span>
         </div>
       </div>
+
+      {/* BOTTOM RIGHT INSTRUCTIONAL PROMPT */}
+      <div className="absolute bottom-3 right-4 z-20 font-mono text-[10px] text-[#A8B2B7] bg-[#070A0D]/80 border border-[#23303A] px-3 py-1 rounded backdrop-blur-md select-none">
+        Drag mouse to orbit • Scroll to zoom • Click node to focus
+      </div>
+
+      {/* INTERACTIVE HOVER TOOLTIP OVERLAY */}
+      {hoveredNode && hoverPos && (
+        <div
+          className="absolute z-30 pointer-events-none font-mono text-xs bg-[#070A0D]/95 border border-[#168C8A] p-3 rounded-lg shadow-2xl backdrop-blur-md max-w-xs space-y-1.5 transition-all duration-75"
+          style={{
+            left: `${Math.min(hoverPos.x + 15, (mountRef.current?.clientWidth || 800) - 260)}px`,
+            top: `${Math.min(hoverPos.y + 15, (mountRef.current?.clientHeight || 450) - 160)}px`
+          }}
+        >
+          <div className="flex items-center justify-between border-b border-[#23303A] pb-1 gap-2">
+            <span className="font-extrabold text-[#EDF1F0] uppercase tracking-tight">{hoveredNode.name}</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded font-bold uppercase bg-[#1B252C] text-[#168C8A] border border-[#23303A]">
+              {hoveredNode.code}
+            </span>
+          </div>
+
+          <div className="space-y-1 text-[11px]">
+            <div className="flex items-center justify-between">
+              <span className="text-[#A8B2B7]">Congestion Index:</span>
+              <span className={`font-bold ${hoveredNode.congestion > 60 ? 'text-[#C95B55]' : hoveredNode.congestion > 35 ? 'text-[#D19A3A]' : 'text-[#4B9A72]'}`}>
+                {hoveredNode.congestion}%
+              </span>
+            </div>
+
+            {/* Congestion Mini Progress Bar */}
+            <div className="w-full bg-[#10161B] h-1.5 rounded-full overflow-hidden border border-[#23303A]">
+              <div
+                className={`h-full transition-all duration-300 ${
+                  hoveredNode.congestion > 60 ? 'bg-[#C95B55]' : hoveredNode.congestion > 35 ? 'bg-[#D19A3A]' : 'bg-[#4B9A72]'
+                }`}
+                style={{ width: `${hoveredNode.congestion}%` }}
+              />
+            </div>
+
+            <div className="flex items-center justify-between text-[10px] pt-0.5">
+              <span className="text-[#A8B2B7]">Max Draft Capacity:</span>
+              <span className="text-[#EDF1F0] font-bold">{hoveredNode.draft}m</span>
+            </div>
+
+            <div className="text-[10px] text-[#A8B2B7] border-t border-[#23303A] pt-1 mt-1">
+              <span className="text-[#168C8A] font-bold block">SAIL Strategic Note:</span>
+              {hoveredNode.sailRelevance}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
